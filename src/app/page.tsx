@@ -39,8 +39,8 @@ export default function LandingPage() {
 
   // Particle canvas
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvasRef.current) return
+    const canvas = canvasRef.current   // non-null after guard
     const ctx = canvas.getContext('2d')!
     let W = 0, H = 0
 
