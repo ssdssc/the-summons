@@ -1,0 +1,228 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 20px;
+  overflow: hidden;
+  max-width: 860px;
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+.header {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(255,255,255,0.02);
+}
+.headerLeft { display: flex; align-items: center; gap: 10px; }
+.headerTitle { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+.count {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  font-size: 12px;
+  color: var(--text-3);
+  font-family: 'DM Mono', monospace;
+}
+
+.toast {
+  margin: 12px 20px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0,110,170,0.1);
+  border: 1px solid rgba(0,110,170,0.25);
+  color: var(--accent-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ── Add school form ────────────────────────────────────────── */
+.addSchoolForm {
+  padding: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.formTitle { font-size: 14px; font-weight: 700; margin: 0; }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.formField { display: flex; flex-direction: column; gap: 7px; }
+.label { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-3); }
+.formFooter { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ── List ───────────────────────────────────────────────────── */
+.list { display: flex; flex-direction: column; }
+.loadingState { display: flex; align-items: center; gap: 10px; color: var(--text-3); font-size: 13px; padding: 24px 20px; }
+.loader { width: 16px; height: 16px; border: 2px solid var(--surface-2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.emptyState { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 24px; text-align: center; color: var(--text-3); font-size: 14px; }
+
+/* ── School card ────────────────────────────────────────────── */
+.schoolCard {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.15s;
+}
+.schoolCard:last-child { border-bottom: none; }
+.schoolCardExpanded { background: rgba(255,255,255,0.015); }
+
+.schoolRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+}
+.schoolRow:hover { background: rgba(255,255,255,0.03); }
+
+.schoolAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text-2);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.schoolAvatarLogo {
+  background: none;
+  border: none;
+  overflow: visible;
+}
+.schoolLogo { width: 100%; height: 100%; object-fit: contain; }
+
+.schoolInfo { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.schoolName { font-size: 14px; font-weight: 600; color: var(--text); }
+.schoolEmail { font-size: 12px; color: var(--text-4); }
+
+.schoolMeta { display: flex; align-items: center; gap: 8px; }
+.memberBadge { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-3); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 3px 10px; }
+
+.schoolActions { display: flex; gap: 4px; }
+.iconBtn {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.iconBtn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); color: var(--text); }
+.chevron { color: var(--text-4); flex-shrink: 0; }
+
+/* ── Logo editor ────────────────────────────────────────────── */
+.logoEditor {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(255,255,255,0.02);
+}
+
+/* ── Members panel ──────────────────────────────────────────── */
+.membersPanel {
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.membersPanelHeader { display: flex; align-items: center; justify-content: space-between; }
+.membersPanelTitle { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-3); }
+.noMembers { font-size: 13px; color: var(--text-4); text-align: center; padding: 16px 0; margin: 0; }
+
+/* Add member form */
+.addMemberForm { padding: 12px 0 4px; }
+.memberFormRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.memberFormRow .input { flex: 1; min-width: 120px; }
+.captainToggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.15s;
+}
+.captainToggle:hover { background: rgba(255,255,255,0.07); color: var(--amber); }
+.captainToggle input { width: 14px; height: 14px; accent-color: var(--amber); }
+
+/* Member rows */
+.memberList { display: flex; flex-direction: column; gap: 6px; }
+.memberRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: border-color 0.15s;
+}
+.memberRow:hover { border-color: rgba(255,255,255,0.09); }
+
+.memberSubjectPill {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-3);
+  flex-shrink: 0;
+  letter-spacing: 0.06em;
+}
+.memberSubjectPill[data-subject="biology"]   { background: rgba(34,197,94,0.1);  border-color: rgba(34,197,94,0.25);   color: #4ade80; }
+.memberSubjectPill[data-subject="chemistry"] { background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.25);  color: #c084fc; }
+.memberSubjectPill[data-subject="physics"]   { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25);  color: #60a5fa; }
+.memberSubjectPill[data-subject="maths"]     { background: rgba(249,115,22,0.1); border-color: rgba(249,115,22,0.25);  color: #fb923c; }
+
+.memberName { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 7px; }
+.captainTag { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; color: var(--amber); background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); border-radius: 999px; padding: 2px 7px; }
+
+.accessCodeWrap { display: flex; align-items: center; gap: 6px; }
+.accessCode { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text-2); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; padding: 4px 10px; letter-spacing: 0.08em; }
+.copyBtn {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.copyBtn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+@media (max-width: 600px) {
+  .formGrid { grid-template-columns: 1fr; }
+  .memberFormRow { flex-direction: column; align-items: stretch; }
+}

@@ -1,0 +1,344 @@
+.main {
+  min-height: 100vh;
+  padding: 40px 20px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.content {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Waiting ─────────────────────────────────────────────────*/
+.waitingCard {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 28px;
+  padding: 80px 48px;
+  max-width: 440px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.spinRing {
+  position: absolute;
+  inset: 0;
+  border-radius: 28px;
+  border: 1px solid rgba(0,110,170,0.15);
+  animation: spin-ring 8s linear infinite;
+}
+.spinRing2 {
+  position: absolute;
+  inset: 12px;
+  border-radius: 20px;
+  border: 1px dashed rgba(0,110,170,0.08);
+  animation: spin-ring 12s linear infinite reverse;
+}
+@keyframes spin-ring {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.waitingContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.waitingIcon { font-size: 52px; }
+.waitingTitle { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; }
+.waitingDesc { font-size: 14px; color: var(--text-2); line-height: 1.6; }
+.waitDots {
+  display: flex;
+  gap: 6px;
+}
+.waitDots span {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: bounce-dot 1.2s infinite;
+}
+.waitDots span:nth-child(2) { animation-delay: 0.2s; }
+.waitDots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Header ──────────────────────────────────────────────────*/
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.subjectPill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--col, var(--accent-2));
+}
+.title {
+  font-size: clamp(32px, 6vw, 52px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.65) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+.subtitle {
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+/* ── My Card ─────────────────────────────────────────────────*/
+.myCard {
+  background: rgba(0,110,170,0.08);
+  border: 1px solid rgba(0,110,170,0.25);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 0 40px rgba(0,110,170,0.1);
+}
+.myRank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.myRankNum {
+  font-size: 40px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  color: var(--accent-2);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+.myRankLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+.myStats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.myStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 20px;
+}
+.myStatNum {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+.myStatLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.statDivider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.mySchool {
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────*/
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  width: fit-content;
+}
+
+/* ── Leaderboard ─────────────────────────────────────────────*/
+.leaderboardList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.myRow {
+  border-color: rgba(0,110,170,0.3) !important;
+  background: rgba(0,110,170,0.06) !important;
+  box-shadow: 0 0 20px rgba(0,110,170,0.1);
+}
+.lbHidden { opacity: 0; transform: translateY(20px); }
+.lbRevealed { animation: slide-up 0.5s var(--ease) both; }
+
+.lbInfo { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.lbSchool { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.lbMember { font-size: 12px; color: var(--text-3); }
+.lbScoreBlock { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.lbScore { font-size: 20px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--text); }
+.lbDetail { font-size: 11px; color: var(--text-3); }
+.meTag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0,110,170,0.15);
+  border: 1px solid rgba(0,110,170,0.3);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--accent-2);
+  flex-shrink: 0;
+}
+
+/* ── Review ──────────────────────────────────────────────────*/
+.reviewList { display: flex; flex-direction: column; gap: 12px; }
+
+.reviewCard {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-left-width: 3px;
+}
+.reviewCorrect { border-left-color: var(--green); background: rgba(34,197,94,0.04); }
+.reviewWrong   { border-left-color: var(--red); background: rgba(239,68,68,0.04); }
+.reviewSkipped { border-left-color: var(--text-4); }
+
+.reviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.reviewQNum {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  font-family: 'DM Mono', monospace;
+}
+.reviewStatus {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reviewImg {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.reviewQuestion {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.reviewOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reviewOpt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px;
+  color: var(--text-2);
+}
+.reviewOptCorrect {
+  background: rgba(34,197,94,0.08);
+  border-color: rgba(34,197,94,0.25);
+  color: var(--text);
+}
+.reviewOptWrong {
+  background: rgba(239,68,68,0.08);
+  border-color: rgba(239,68,68,0.25);
+  color: var(--text);
+}
+.reviewOptKey {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  width: 22px;
+  flex-shrink: 0;
+}
+.reviewTick {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green);
+  white-space: nowrap;
+}
+.reviewCross {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--red);
+  white-space: nowrap;
+}
+
+.footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-4);
+  padding: 20px 0;
+}
+
+/* ── Responsive ──────────────────────────────────────────────*/
+@media (max-width: 600px) {
+  .myCard { flex-direction: column; gap: 16px; }
+  .myStats { justify-content: center; }
+  .mySchool { display: none; }
+  .tabs { width: 100%; justify-content: center; }
+}
