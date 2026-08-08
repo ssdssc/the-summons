@@ -1,34 +1,41 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-// Lazy singleton — avoids "supabaseUrl is required" at build time
-// when env vars aren't available in the build environment.
-let _supabase: ReturnType<typeof createClient> | null = null
+// ── Browser client (lazy singleton) ─────────────────────────────
+// Using a function avoids module-level createClient() calls that
+// throw "supabaseUrl is required" at build time when env vars
+// aren't available in the Vercel build environment.
 
-export function getSupabase() {
+let _supabase: SupabaseClient | null = null
+
+export function getSupabase(): SupabaseClient {
   if (!_supabase) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !key) throw new Error('Missing Supabase env vars')
-    _supabase = createClient(url, key)
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
   }
   return _supabase
 }
 
-// Keep the named export for backwards compatibility with existing imports
-export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
-  get(_target, prop) {
-    return (getSupabase() as any)[prop]
-  },
-})
+// Named export kept for backwards compat — call getSupabase() instead
+// in server contexts; this is fine for client components.
+// We use a getter so TypeScript sees the real SupabaseClient type.
+export const supabase: SupabaseClient = new Proxy(
+  {} as SupabaseClient,
+  {
+    get(_target: SupabaseClient, prop: string | symbol) {
+      return (getSupabase() as any)[prop]
+    },
+  }
+)
 
-// Server-side admin client (for API routes - bypasses RLS)
-export const createAdminClient = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  return createClient(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
-}
+// ── Server-side admin client (for API routes - bypasses RLS) ─────
+export const createAdminClient = (): SupabaseClient =>
+  createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
 export type Subject = 'biology' | 'chemistry' | 'physics' | 'maths'
 

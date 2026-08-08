@@ -79,7 +79,7 @@ export default function ResultsPage() {
       .select('status')
       .eq('subject', member.subject)
       .single()
-      .then(({ data }: { data: { status: string } | null }) => {
+      .then(({ data }) => {
         if (data?.status === 'results_published') loadResults(member.subject)
       })
 
