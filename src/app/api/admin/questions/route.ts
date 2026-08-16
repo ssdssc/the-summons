@@ -92,7 +92,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, count: toInsert.length })
   }
 
-  // Single question add
+  // Single question add or edit
+  if (body.id) {
+    // Update existing question (preserves order_index)
+    const { error } = await supabase.from('questions').update({
+      question_text: body.question_text,
+      option_a: body.option_a,
+      option_b: body.option_b,
+      option_c: body.option_c,
+      option_d: body.option_d,
+      option_e: body.option_e ?? null,
+      correct_option: body.correct_option,
+      points: body.points ?? 4,
+      negative_points: body.negative_points ?? 1,
+      image_url: body.image_url ?? null,
+      // Sinhala translations
+      question_text_si: body.question_text_si ?? null,
+      option_a_si: body.option_a_si ?? null,
+      option_b_si: body.option_b_si ?? null,
+      option_c_si: body.option_c_si ?? null,
+      option_d_si: body.option_d_si ?? null,
+      option_e_si: body.option_e_si ?? null,
+    }).eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
+  // New question insert
   const { data: last } = await supabase
     .from('questions')
     .select('order_index')
@@ -128,14 +154,24 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true })
 }
 
-// ── DELETE: Remove a question ──────────────────────────────
+// ── DELETE: Remove a question or clear all ───────────────────
 export async function DELETE(req: NextRequest) {
   if (!checkAdminAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const questionId = req.nextUrl.searchParams.get('id')
-  if (!questionId) return NextResponse.json({ error: 'Question ID required' }, { status: 400 })
-
+  const subject = req.nextUrl.searchParams.get('subject')
   const supabase = createAdminClient()
+
+  if (subject) {
+    const { data: quiz } = await supabase.from('quizzes').select('id').eq('subject', subject).single()
+    if (quiz) {
+      await supabase.from('questions').delete().eq('quiz_id', quiz.id)
+    }
+    return NextResponse.json({ ok: true })
+  }
+
+  if (!questionId) return NextResponse.json({ error: 'Question ID or subject required' }, { status: 400 })
+
   await supabase.from('questions').delete().eq('id', questionId)
   return NextResponse.json({ ok: true })
 }

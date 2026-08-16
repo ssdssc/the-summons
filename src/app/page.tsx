@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import styles from './page.module.css'
 
-const TARGET = new Date('2026-08-28T00:00:00+05:30')
+const TARGET = new Date('2026-08-30T00:00:00+05:30')
 
 interface Countdown {
   days: number
@@ -124,7 +124,7 @@ export default function LandingPage() {
         <div className={styles.vDivider} />
 
         {cd && (
-          <div className={styles.countdown} aria-label="Countdown to August 28 online rounds">
+          <div className={styles.countdown} aria-label="Countdown to August 30 online rounds">
             <div className={styles.cdUnit}>
               <div className={styles.cdBox}>
                 <span className={styles.cdNum}>{cd.expired ? '00' : pad(cd.days)}</span>
@@ -158,12 +158,12 @@ export default function LandingPage() {
         <div className={styles.dateBox}>
           <p className={styles.evtLbl}>Online Rounds Begin</p>
           <div className={styles.divot} />
-          <p className={styles.evtDate}>August 28, 2026</p>
+          <p className={styles.evtDate}>August 30, 2026</p>
         </div>
 
         <p className={styles.desc}>
           Summons is currently being prepared.<br />
-          Online rounds open on <strong>August 28, 2026</strong>.<br />
+          Online rounds open on <strong>August 30, 2026</strong>.<br />
           Check back then to register and compete.
         </p>
 

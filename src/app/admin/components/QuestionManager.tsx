@@ -200,6 +200,7 @@ export default function QuestionManager({ subject, token }: Props) {
     setSaving(true)
     const payload = {
       ...form,
+      id: editId || undefined,
       subject,
       option_e: form.option_e || null,
       image_url: form.image_url || null,
@@ -210,14 +211,19 @@ export default function QuestionManager({ subject, token }: Props) {
       option_d_si: form.option_d_si || null,
       option_e_si: form.option_e_si || null,
     }
-    if (editId) {
-      await fetch(`/api/admin/questions?id=${editId}`, { method: 'DELETE', headers: { 'x-admin-token': token } })
-    }
-    await fetch('/api/admin/questions', {
+
+    const res = await fetch('/api/admin/questions', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
       body: JSON.stringify(payload),
     })
     setSaving(false)
+    
+    if (!res.ok) {
+      const errData = await res.json()
+      toast(`Error saving: ${errData.error || 'Unknown error'}`)
+      return
+    }
+    
     toast(editId ? 'Question updated' : 'Question added')
     setForm(EMPTY_Q); setEditId(null); setView('list'); setFormLang('en')
     loadQuestions()
@@ -228,6 +234,15 @@ export default function QuestionManager({ subject, token }: Props) {
     await fetch(`/api/admin/questions?id=${id}`, { method: 'DELETE', headers: { 'x-admin-token': token } })
     loadQuestions()
     toast('Question deleted')
+  }
+
+  async function clearAllQuestions() {
+    if (!confirm('Are you sure you want to delete ALL questions for this subject? This cannot be undone.')) return
+    setSaving(true)
+    await fetch(`/api/admin/questions?subject=${subject}`, { method: 'DELETE', headers: { 'x-admin-token': token } })
+    setSaving(false)
+    loadQuestions()
+    toast('All questions deleted')
   }
 
   function startEdit(q: Question) {
@@ -302,6 +317,9 @@ export default function QuestionManager({ subject, token }: Props) {
           <button className={`tab-btn ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><List size={16} /> List</button>
           <button className={`tab-btn ${view === 'add' ? 'active' : ''}`} onClick={() => { setView('add'); setForm(EMPTY_Q); setEditId(null); setFormLang('en') }} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Add</button>
           <button className={`tab-btn ${view === 'upload' ? 'active' : ''}`} onClick={() => setView('upload')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Upload size={16} /> Bulk Upload</button>
+          {questions.length > 0 && (
+            <button className="tab-btn" onClick={clearAllQuestions} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--red)', marginLeft: 8 }}><Trash2 size={16} /> Clear All</button>
+          )}
         </div>
       </div>
 
