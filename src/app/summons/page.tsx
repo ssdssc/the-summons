@@ -38,6 +38,8 @@ export default function SummonsPage() {
   const [error, setError] = useState('')
   const [data, setData] = useState<PortalData | null>(null)
   const [quizStatus, setQuizStatus] = useState<string>('waiting')
+  const [langPicked, setLangPicked] = useState(false)
+  const [selectedLang, setSelectedLang] = useState<'en' | 'si'>('en')
   const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const channelRef = useRef<any>(null)
@@ -132,14 +134,8 @@ export default function SummonsPage() {
       setData(json)
       setQuizStatus(json.quiz?.status ?? 'waiting')
 
-      // If already active, go straight to quiz
-      if (json.quiz?.status === 'active') {
-        sessionStorage.setItem('summons_member', JSON.stringify(json.member))
-        sessionStorage.setItem('summons_school', JSON.stringify(json.school))
-        sessionStorage.setItem('summons_quiz', JSON.stringify(json.quiz))
-        router.push('/summons/quiz')
-        return
-      }
+      // If already active, go straight to quiz (after lang pick handled below)
+      // We still show the member card first so they can pick language
 
       // If results published
       if (json.quiz?.status === 'results_published' || json.quiz?.status === 'ended') {
@@ -161,7 +157,21 @@ export default function SummonsPage() {
     sessionStorage.setItem('summons_member', JSON.stringify(data.member))
     sessionStorage.setItem('summons_school', JSON.stringify(data.school))
     sessionStorage.setItem('summons_quiz', JSON.stringify({ ...data.quiz, status: quizStatus }))
+    sessionStorage.setItem('summons_lang', selectedLang)
     router.push('/summons/quiz')
+  }
+
+  function handleLangConfirm(lang: 'en' | 'si') {
+    setSelectedLang(lang)
+    sessionStorage.setItem('summons_lang', lang)
+    setLangPicked(true)
+    // If quiz is already active at this point, navigate immediately
+    if (quizStatus === 'active' && data) {
+      sessionStorage.setItem('summons_member', JSON.stringify(data.member))
+      sessionStorage.setItem('summons_school', JSON.stringify(data.school))
+      sessionStorage.setItem('summons_quiz', JSON.stringify({ ...data.quiz, status: quizStatus }))
+      router.push('/summons/quiz')
+    }
   }
 
   const subjectCfg = data ? SUBJECT_CONFIG[data.member.subject] : null
@@ -268,9 +278,46 @@ export default function SummonsPage() {
               </div>
             </div>
 
-            {/* Quiz status */}
-            {data.quiz ? (
-              <div className={styles.quizStatus}>
+            {/* ── Language Picker ── */}
+            {!langPicked ? (
+              <div className={`${styles.langPicker} anim-fade-up`}>
+                <p className={styles.langPickerTitle}>Select your preferred language</p>
+                <p className={styles.langPickerSub}>ඔබේ භාෂාව තෝරන්න</p>
+                <div className={styles.langBtnRow}>
+                  <button
+                    id="lang-english"
+                    className={styles.langBtn}
+                    onClick={() => handleLangConfirm('en')}
+                  >
+                    <span className={styles.langFlag}>🇬🇧</span>
+                    <span className={styles.langName}>English</span>
+                  </button>
+                  <button
+                    id="lang-sinhala"
+                    className={styles.langBtn}
+                    onClick={() => handleLangConfirm('si')}
+                  >
+                    <span className={styles.langFlag}>🇱🇰</span>
+                    <span className={styles.langName}>සිංහල</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Selected lang badge */}
+                <div className={styles.langSelectedBadge}>
+                  {selectedLang === 'en' ? '🇬🇧 English' : '🇱🇰 සිංහල'}
+                  <button
+                    className={styles.langChangeBtn}
+                    onClick={() => setLangPicked(false)}
+                  >
+                    Change
+                  </button>
+                </div>
+
+                {/* Quiz status */}
+                {data.quiz ? (
+                  <div className={styles.quizStatus}>
                 {quizStatus === 'waiting' && (
                   <>
                     <div className={styles.statusRow}>
@@ -345,27 +392,29 @@ export default function SummonsPage() {
                   </div>
                 )}
               </div>
-            ) : (
-              <div className={styles.noQuizBlock}>
-                <div className={styles.noQuizIconRing}>
-                  <div className={styles.noQuizIconInner}>
-                    <CalendarClock size={24} strokeWidth={1.5} />
+              ) : (
+                <div className={styles.noQuizBlock}>
+                  <div className={styles.noQuizIconRing}>
+                    <div className={styles.noQuizIconInner}>
+                      <CalendarClock size={24} strokeWidth={1.5} />
+                    </div>
+                  </div>
+                  <div className={styles.noQuizTitle}>Not Scheduled Yet</div>
+                  <div className={styles.noQuizDesc}>
+                    The quiz for your subject hasn't been scheduled yet. Keep this page open — you'll be notified the moment it goes live.
+                  </div>
+                  <div className={styles.noQuizPill}>
+                    <span className={styles.noQuizPillDot} />
+                    Awaiting schedule
                   </div>
                 </div>
-                <div className={styles.noQuizTitle}>Not Scheduled Yet</div>
-                <div className={styles.noQuizDesc}>
-                  The quiz for your subject hasn't been scheduled yet. Keep this page open — you'll be notified the moment it goes live.
-                </div>
-                <div className={styles.noQuizPill}>
-                  <span className={styles.noQuizPillDot} />
-                  Awaiting schedule
-                </div>
-              </div>
+              )}
+              </>
             )}
 
             {/* Back */}
             <button
-              onClick={() => { setData(null); setCode(''); setError('') }}
+              onClick={() => { setData(null); setCode(''); setError(''); setLangPicked(false); setSelectedLang('en') }}
               className={`btn btn-ghost ${styles.backBtn}`}
             >
               ← Different code

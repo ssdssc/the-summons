@@ -79,6 +79,13 @@ export async function POST(req: NextRequest) {
       points: q.points ?? 4,
       negative_points: q.negative_points ?? 1,
       image_url: q.image_url ?? null,
+      // Sinhala translations
+      question_text_si: q.question_text_si ?? null,
+      option_a_si: q.option_a_si ?? null,
+      option_b_si: q.option_b_si ?? null,
+      option_c_si: q.option_c_si ?? null,
+      option_d_si: q.option_d_si ?? null,
+      option_e_si: q.option_e_si ?? null,
     }))
     const { error } = await supabase.from('questions').insert(toInsert)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -108,6 +115,13 @@ export async function POST(req: NextRequest) {
     points: body.points ?? 4,
     negative_points: body.negative_points ?? 1,
     image_url: body.image_url ?? null,
+    // Sinhala translations
+    question_text_si: body.question_text_si ?? null,
+    option_a_si: body.option_a_si ?? null,
+    option_b_si: body.option_b_si ?? null,
+    option_c_si: body.option_c_si ?? null,
+    option_d_si: body.option_d_si ?? null,
+    option_e_si: body.option_e_si ?? null,
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

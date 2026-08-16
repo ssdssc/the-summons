@@ -20,6 +20,13 @@ interface Question {
   points: number
   negative_points: number
   image_url: string | null
+  // Sinhala translations
+  question_text_si: string | null
+  option_a_si: string | null
+  option_b_si: string | null
+  option_c_si: string | null
+  option_d_si: string | null
+  option_e_si: string | null
 }
 
 const OPTIONS = ['A', 'B', 'C', 'D', 'E'] as const
@@ -38,6 +45,7 @@ export default function QuizPage() {
   const [questionTransition, setQuestionTransition] = useState(false)
   const [feedbackOption, setFeedbackOption] = useState<string | null>(null)
   const [showTabWarning, setShowTabWarning] = useState(false)
+  const [lang, setLang] = useState<'en' | 'si'>('en')
   const channelRef = useRef<any>(null)
   const wasHiddenRef = useRef(false)
 
@@ -46,12 +54,14 @@ export default function QuizPage() {
     const m = sessionStorage.getItem('summons_member')
     const s = sessionStorage.getItem('summons_school')
     const q = sessionStorage.getItem('summons_quiz')
+    const l = sessionStorage.getItem('summons_lang') || 'en'
     if (!m || !q) { router.replace('/summons'); return }
     const memberData = JSON.parse(m)
     const quizData = JSON.parse(q)
     setMember(memberData)
     setSchool(JSON.parse(s || '{}'))
     setQuiz(quizData)
+    setLang(l as 'en' | 'si')
   }, [router])
 
   // Load questions from Supabase
@@ -218,12 +228,15 @@ export default function QuizPage() {
     )
   }
 
+  const isSi = lang === 'si'
+  const qText = isSi && currentQuestion.question_text_si ? currentQuestion.question_text_si : currentQuestion.question_text
+
   const options = [
-    { key: 'A', text: currentQuestion.option_a },
-    { key: 'B', text: currentQuestion.option_b },
-    { key: 'C', text: currentQuestion.option_c },
-    { key: 'D', text: currentQuestion.option_d },
-    ...(currentQuestion.option_e ? [{ key: 'E', text: currentQuestion.option_e }] : []),
+    { key: 'A', text: isSi && currentQuestion.option_a_si ? currentQuestion.option_a_si : currentQuestion.option_a },
+    { key: 'B', text: isSi && currentQuestion.option_b_si ? currentQuestion.option_b_si : currentQuestion.option_b },
+    { key: 'C', text: isSi && currentQuestion.option_c_si ? currentQuestion.option_c_si : currentQuestion.option_c },
+    { key: 'D', text: isSi && currentQuestion.option_d_si ? currentQuestion.option_d_si : currentQuestion.option_d },
+    ...(currentQuestion.option_e || currentQuestion.option_e_si ? [{ key: 'E', text: isSi && currentQuestion.option_e_si ? currentQuestion.option_e_si : (currentQuestion.option_e || '') }] : []),
   ]
 
   return (
@@ -275,7 +288,7 @@ export default function QuizPage() {
           {/* Question text */}
           <div className={styles.questionHeader}>
             <div className={styles.qIndex}>Q{currentIndex + 1}</div>
-            <p className={styles.questionText}>{currentQuestion.question_text}</p>
+            <p className={`${styles.questionText} ${isSi && currentQuestion.question_text_si ? 'lang-si' : ''}`}>{qText}</p>
           </div>
 
           {/* Points info */}
@@ -296,7 +309,7 @@ export default function QuizPage() {
                 disabled={!!answered || submitting}
               >
                 <span className="option-letter">{opt.key}</span>
-                <span className={styles.optionText}>{opt.text}</span>
+                <span className={`${styles.optionText} ${isSi && currentQuestion[`option_${opt.key.toLowerCase()}_si` as keyof Question] ? 'lang-si' : ''}`}>{opt.text}</span>
                 {answered && opt.key === answered.correct && (
                   <span className={styles.correctMark}>✓</span>
                 )}

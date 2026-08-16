@@ -22,7 +22,7 @@ import { SUBJECT_CONFIG, type Subject } from '@/lib/supabase'
 import { SubjectIcon } from './SubjectIcon'
 import {
   AlertTriangle, List, Upload, FileText, ImageIcon,
-  Trash2, FileJson, Plus, Pencil, GripVertical,
+  Trash2, FileJson, Plus, Pencil, GripVertical, Globe,
 } from 'lucide-react'
 import ImageUploader from './ImageUploader'
 import styles from './QuestionManager.module.css'
@@ -32,9 +32,17 @@ interface Question {
   id: string; order_index: number; question_text: string
   option_a: string; option_b: string; option_c: string; option_d: string; option_e: string | null
   correct_option: string; points: number; negative_points: number; image_url: string | null
+  // Sinhala translations
+  question_text_si: string | null
+  option_a_si: string | null; option_b_si: string | null
+  option_c_si: string | null; option_d_si: string | null; option_e_si: string | null
 }
 
-const EMPTY_Q = { question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', option_e: '', correct_option: 'A', points: 4, negative_points: 1, image_url: '' }
+const EMPTY_Q = {
+  question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', option_e: '',
+  correct_option: 'A', points: 4, negative_points: 1, image_url: '',
+  question_text_si: '', option_a_si: '', option_b_si: '', option_c_si: '', option_d_si: '', option_e_si: '',
+}
 
 // ── Sortable card ────────────────────────────────────────────
 function SortableQuestionCard({
@@ -53,6 +61,8 @@ function SortableQuestionCard({
     opacity: isDragging ? 0.35 : 1,
   }
 
+  const hasSinhala = !!(q.question_text_si?.trim())
+
   return (
     <div
       ref={setNodeRef}
@@ -68,6 +78,11 @@ function SortableQuestionCard({
 
       <div className={styles.qBody}>
         <p className={styles.qText}>{q.question_text}</p>
+        {hasSinhala && (
+          <p className={styles.qText} style={{ color: 'var(--text-3)', fontSize: 13, marginTop: 2 }}>
+            🇱🇰 {q.question_text_si}
+          </p>
+        )}
         <div className={styles.qOptions}>
           {['A', 'B', 'C', 'D', ...(q.option_e ? ['E'] : [])].map(opt => {
             const text = opt === 'A' ? q.option_a : opt === 'B' ? q.option_b : opt === 'C' ? q.option_c : opt === 'D' ? q.option_d : q.option_e ?? ''
@@ -82,6 +97,11 @@ function SortableQuestionCard({
           <span className={styles.metaGreen}>+{q.points} correct</span>
           {q.negative_points > 0 && <span className={styles.metaRed}>−{q.negative_points} wrong</span>}
           {q.image_url && <span className={styles.metaImg} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><ImageIcon size={14} /> Has image</span>}
+          {hasSinhala && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: 12, color: 'var(--accent-2)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 6, border: '1px solid rgba(0,136,204,0.25)' }}>
+              <Globe size={12} /> සිංහල
+            </span>
+          )}
         </div>
       </div>
 
@@ -97,6 +117,29 @@ function SortableQuestionCard({
   )
 }
 
+// ── Language tab button ──────────────────────────────────────
+function LangTab({ lang, active, onClick }: { lang: 'en' | 'si'; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+        background: active ? 'var(--accent-soft)' : 'var(--surface)',
+        color: active ? 'var(--accent-2)' : 'var(--text-3)',
+        transition: 'all 0.2s',
+      }}
+    >
+      {lang === 'en' ? '🇬🇧 English' : '🇱🇰 සිංහල'}
+      {lang === 'si' && !active && (
+        <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }}>optional</span>
+      )}
+    </button>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────
 export default function QuestionManager({ subject, token }: Props) {
   const [questions, setQuestions] = useState<Question[]>([])
@@ -109,6 +152,7 @@ export default function QuestionManager({ subject, token }: Props) {
   const [uploadJson, setUploadJson] = useState('')
   const [uploadError, setUploadError] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [formLang, setFormLang] = useState<'en' | 'si'>('en')
   const fileRef = useRef<HTMLInputElement>(null)
   const cfg = SUBJECT_CONFIG[subject]
 
@@ -154,7 +198,18 @@ export default function QuestionManager({ subject, token }: Props) {
       toast('Fill in question text and at least options A–D.'); return
     }
     setSaving(true)
-    const payload = { ...form, subject, option_e: form.option_e || null, image_url: form.image_url || null }
+    const payload = {
+      ...form,
+      subject,
+      option_e: form.option_e || null,
+      image_url: form.image_url || null,
+      question_text_si: form.question_text_si || null,
+      option_a_si: form.option_a_si || null,
+      option_b_si: form.option_b_si || null,
+      option_c_si: form.option_c_si || null,
+      option_d_si: form.option_d_si || null,
+      option_e_si: form.option_e_si || null,
+    }
     if (editId) {
       await fetch(`/api/admin/questions?id=${editId}`, { method: 'DELETE', headers: { 'x-admin-token': token } })
     }
@@ -164,7 +219,7 @@ export default function QuestionManager({ subject, token }: Props) {
     })
     setSaving(false)
     toast(editId ? 'Question updated' : 'Question added')
-    setForm(EMPTY_Q); setEditId(null); setView('list')
+    setForm(EMPTY_Q); setEditId(null); setView('list'); setFormLang('en')
     loadQuestions()
   }
 
@@ -176,8 +231,15 @@ export default function QuestionManager({ subject, token }: Props) {
   }
 
   function startEdit(q: Question) {
-    setForm({ question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, option_e: q.option_e ?? '', correct_option: q.correct_option, points: q.points, negative_points: q.negative_points, image_url: q.image_url ?? '' })
-    setEditId(q.id); setView('add')
+    setForm({
+      question_text: q.question_text,
+      option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, option_e: q.option_e ?? '',
+      correct_option: q.correct_option, points: q.points, negative_points: q.negative_points, image_url: q.image_url ?? '',
+      question_text_si: q.question_text_si ?? '',
+      option_a_si: q.option_a_si ?? '', option_b_si: q.option_b_si ?? '',
+      option_c_si: q.option_c_si ?? '', option_d_si: q.option_d_si ?? '', option_e_si: q.option_e_si ?? '',
+    })
+    setEditId(q.id); setView('add'); setFormLang('en')
   }
 
   async function handleBulkUpload() {
@@ -205,9 +267,27 @@ export default function QuestionManager({ subject, token }: Props) {
     reader.readAsText(file)
   }
 
-  const sampleJson = JSON.stringify([{ question_text: 'What is...', option_a: 'A', option_b: 'B', option_c: 'C', option_d: 'D', option_e: null, correct_option: 'A', points: 4, negative_points: 1, image_url: null }], null, 2)
+  const sampleJson = JSON.stringify([{
+    question_text: 'What is...', question_text_si: 'කුමක්ද...',
+    option_a: 'Answer A', option_a_si: 'පිළිතුර A',
+    option_b: 'Answer B', option_b_si: 'පිළිතුර B',
+    option_c: 'Answer C', option_c_si: 'පිළිතුර C',
+    option_d: 'Answer D', option_d_si: 'පිළිතුර D',
+    option_e: null, option_e_si: null,
+    correct_option: 'A', points: 4, negative_points: 1, image_url: null,
+  }], null, 2)
+
   const activeQuestion = activeId ? questions.find(q => q.id === activeId) : null
   const activeIndex = activeId ? questions.findIndex(q => q.id === activeId) : -1
+
+  // ── Helpers for the bilingual form ──
+  const isSi = formLang === 'si'
+  const optKeys = ['A', 'B', 'C', 'D', 'E'] as const
+
+  function getFieldKey(opt: typeof optKeys[number], si: boolean) {
+    const base = `option_${opt.toLowerCase()}`
+    return si ? `${base}_si` : base
+  }
 
   return (
     <div className={styles.wrap}>
@@ -220,7 +300,7 @@ export default function QuestionManager({ subject, token }: Props) {
         </div>
         <div className={styles.headerActions}>
           <button className={`tab-btn ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><List size={16} /> List</button>
-          <button className={`tab-btn ${view === 'add' ? 'active' : ''}`} onClick={() => { setView('add'); setForm(EMPTY_Q); setEditId(null) }} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Add</button>
+          <button className={`tab-btn ${view === 'add' ? 'active' : ''}`} onClick={() => { setView('add'); setForm(EMPTY_Q); setEditId(null); setFormLang('en') }} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Add</button>
           <button className={`tab-btn ${view === 'upload' ? 'active' : ''}`} onClick={() => setView('upload')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Upload size={16} /> Bulk Upload</button>
         </div>
       </div>
@@ -285,60 +365,107 @@ export default function QuestionManager({ subject, token }: Props) {
       {/* ── Add/Edit View ── */}
       {view === 'add' && (
         <div className={styles.formWrap}>
-          <h3 className={styles.formTitle}>{editId ? 'Edit Question' : 'Add New Question'}</h3>
-          <div className={styles.formGrid}>
-            <div className={styles.formField}>
-              <label className={styles.label}>Question Text *</label>
-              <textarea className={`input ${styles.textarea}`} rows={3} value={form.question_text} onChange={e => setForm(f => ({ ...f, question_text: e.target.value }))} placeholder="Enter the question..." />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <h3 className={styles.formTitle} style={{ marginBottom: 0 }}>{editId ? 'Edit Question' : 'Add New Question'}</h3>
+            {/* Language tabs */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <LangTab lang="en" active={formLang === 'en'} onClick={() => setFormLang('en')} />
+              <LangTab lang="si" active={formLang === 'si'} onClick={() => setFormLang('si')} />
             </div>
+          </div>
+
+          {/* Sinhala info banner */}
+          {isSi && (
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid rgba(0,136,204,0.25)', fontSize: 13, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Globe size={14} style={{ color: 'var(--accent-2)', flexShrink: 0 }} />
+              Sinhala translations are <strong style={{ color: 'var(--text)' }}>optional</strong>. Leave blank and English will be shown to users who select Sinhala.
+            </div>
+          )}
+
+          <div className={styles.formGrid}>
+            {/* Question text */}
             <div className={styles.formField}>
-              <label className={styles.label}>Question Image (optional)</label>
-              <ImageUploader
-                value={form.image_url || null}
-                onChange={(url) => setForm(f => ({ ...f, image_url: url ?? '' }))}
-                adminToken={token}
+              <label className={styles.label}>
+                {isSi ? '🇱🇰 Question Text (Sinhala)' : '🇬🇧 Question Text *'}
+              </label>
+              <textarea
+                className={`input ${styles.textarea} ${isSi ? 'lang-si' : ''}`}
+                rows={3}
+                value={isSi ? form.question_text_si : form.question_text}
+                onChange={e => setForm(f => isSi
+                  ? { ...f, question_text_si: e.target.value }
+                  : { ...f, question_text: e.target.value }
+                )}
+                placeholder={isSi ? 'ප්‍රශ්නය සිංහලෙන් ඇතුළු කරන්න...' : 'Enter the question...'}
               />
             </div>
+
+            {/* Image — only on English tab */}
+            {!isSi && (
+              <div className={styles.formField}>
+                <label className={styles.label}>Question Image (optional)</label>
+                <ImageUploader
+                  value={form.image_url || null}
+                  onChange={(url) => setForm(f => ({ ...f, image_url: url ?? '' }))}
+                  adminToken={token}
+                />
+              </div>
+            )}
+
+            {/* Options */}
             <div className={styles.optionsGrid}>
-              {(['A', 'B', 'C', 'D', 'E'] as const).map(opt => {
-                const key = `option_${opt.toLowerCase()}` as keyof typeof form
+              {optKeys.map(opt => {
+                const key = getFieldKey(opt, isSi) as keyof typeof form
+                const isOptE = opt === 'E'
                 return (
                   <div key={opt} className={styles.optionField}>
                     <label className={styles.optionLabel}>
                       <span className={`${styles.optLetter} ${form.correct_option === opt ? styles.optLetterActive : ''}`}>{opt}</span>
-                      {opt === 'E' && <span className={styles.optionalTag}>optional</span>}
+                      {isOptE && <span className={styles.optionalTag}>optional</span>}
+                      {isSi && <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 4 }}>🇱🇰</span>}
                     </label>
                     <input
-                      className="input"
+                      className={`input ${isSi ? 'lang-si' : ''}`}
                       value={form[key] as string ?? ''}
                       onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      placeholder={`Option ${opt}${opt === 'E' ? ' (leave blank if not needed)' : ''}`}
+                      placeholder={isSi
+                        ? `විකල්පය ${opt}${isOptE ? ' (නොමැතිනම් හිස් තබන්න)' : ''}`
+                        : `Option ${opt}${isOptE ? ' (leave blank if not needed)' : ''}`
+                      }
                     />
                   </div>
                 )
               })}
             </div>
-            <div className={styles.correctRow}>
-              <label className={styles.label}>Correct Answer *</label>
-              <div className={styles.correctBtns}>
-                {['A', 'B', 'C', 'D', 'E'].map(opt => (
-                  <button key={opt} type="button"
-                    className={`${styles.correctBtn} ${form.correct_option === opt ? styles.correctBtnActive : ''}`}
-                    onClick={() => setForm(f => ({ ...f, correct_option: opt }))}
-                  >{opt}</button>
-                ))}
+
+            {/* Correct answer — only on English tab */}
+            {!isSi && (
+              <div className={styles.correctRow}>
+                <label className={styles.label}>Correct Answer *</label>
+                <div className={styles.correctBtns}>
+                  {['A', 'B', 'C', 'D', 'E'].map(opt => (
+                    <button key={opt} type="button"
+                      className={`${styles.correctBtn} ${form.correct_option === opt ? styles.correctBtnActive : ''}`}
+                      onClick={() => setForm(f => ({ ...f, correct_option: opt }))}
+                    >{opt}</button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className={styles.pointsRow}>
-              <div className={styles.formField}>
-                <label className={styles.label}>Points (correct)</label>
-                <input type="number" className="input" value={form.points} min={0} onChange={e => setForm(f => ({ ...f, points: +e.target.value }))} />
+            )}
+
+            {/* Points — only on English tab */}
+            {!isSi && (
+              <div className={styles.pointsRow}>
+                <div className={styles.formField}>
+                  <label className={styles.label}>Points (correct)</label>
+                  <input type="number" className="input" value={form.points} min={0} onChange={e => setForm(f => ({ ...f, points: +e.target.value }))} />
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.label}>Negative (wrong)</label>
+                  <input type="number" className="input" value={form.negative_points} min={0} onChange={e => setForm(f => ({ ...f, negative_points: +e.target.value }))} />
+                </div>
               </div>
-              <div className={styles.formField}>
-                <label className={styles.label}>Negative (wrong)</label>
-                <input type="number" className="input" value={form.negative_points} min={0} onChange={e => setForm(f => ({ ...f, negative_points: +e.target.value }))} />
-              </div>
-            </div>
+            )}
           </div>
           <div className={styles.formFooter}>
             <button className="btn btn-ghost" onClick={() => { setView('list'); setEditId(null) }}>Cancel</button>
@@ -353,7 +480,11 @@ export default function QuestionManager({ subject, token }: Props) {
       {view === 'upload' && (
         <div className={styles.formWrap}>
           <h3 className={styles.formTitle}>Bulk Upload Questions</h3>
-          <p className={styles.uploadDesc}>Paste a JSON array of questions below, or upload a .json file. <strong>This will replace all existing questions.</strong></p>
+          <p className={styles.uploadDesc}>
+            Paste a JSON array of questions below, or upload a .json file. <strong>This will replace all existing questions.</strong>
+            <br />
+            <span style={{ color: 'var(--text-3)', fontSize: 13 }}>Include <code style={{ color: 'var(--accent-2)' }}>question_text_si</code> and <code style={{ color: 'var(--accent-2)' }}>option_*_si</code> fields for Sinhala translations (optional).</span>
+          </p>
           <div className={styles.uploadActions}>
             <button className="btn btn-ghost" onClick={() => fileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FileJson size={16} /> Upload JSON File</button>
             <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileUpload} />
@@ -364,13 +495,13 @@ export default function QuestionManager({ subject, token }: Props) {
             rows={14}
             value={uploadJson}
             onChange={e => { setUploadJson(e.target.value); setUploadError('') }}
-            placeholder={'[\n  {\n    "question_text": "...",\n    "option_a": "...",\n    ...\n  }\n]'}
+            placeholder={'[\n  {\n    "question_text": "...",\n    "question_text_si": "... (optional)",\n    "option_a": "...",\n    "option_a_si": "... (optional)",\n    ...\n  }\n]'}
           />
           {uploadError && <div className={styles.uploadError} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><AlertTriangle size={16} /> {uploadError}</div>}
           <div className={styles.formFooter}>
             <button className="btn btn-ghost" onClick={() => setView('list')}>Cancel</button>
             <button className="btn btn-primary" onClick={handleBulkUpload} disabled={saving || !uploadJson.trim()}>
-              {saving ? 'Uploading...' : <><Upload size={16} /> Upload & Replace All</>}
+              {saving ? 'Uploading...' : <><Upload size={16} /> Upload &amp; Replace All</>}
             </button>
           </div>
         </div>

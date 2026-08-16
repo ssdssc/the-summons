@@ -54,8 +54,25 @@ CREATE TABLE questions (
   correct_option  TEXT NOT NULL CHECK (correct_option IN ('A','B','C','D','E')),
   points          INT DEFAULT 4,
   negative_points INT DEFAULT 1,
-  image_url       TEXT
+  image_url       TEXT,
+  -- Sinhala translations (nullable — English is shown as fallback)
+  question_text_si TEXT,
+  option_a_si      TEXT,
+  option_b_si      TEXT,
+  option_c_si      TEXT,
+  option_d_si      TEXT,
+  option_e_si      TEXT
 );
+
+-- ── MIGRATION: Add Sinhala columns to existing questions table ──
+-- Run this block if the table already exists in your Supabase project:
+-- ALTER TABLE questions
+--   ADD COLUMN IF NOT EXISTS question_text_si TEXT,
+--   ADD COLUMN IF NOT EXISTS option_a_si      TEXT,
+--   ADD COLUMN IF NOT EXISTS option_b_si      TEXT,
+--   ADD COLUMN IF NOT EXISTS option_c_si      TEXT,
+--   ADD COLUMN IF NOT EXISTS option_d_si      TEXT,
+--   ADD COLUMN IF NOT EXISTS option_e_si      TEXT;
 CREATE INDEX idx_questions_quiz ON questions(quiz_id, order_index);
 
 -- ── Live quiz control state (realtime subscribed) ─────────────

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Noto+Sans+Sinhala:wght@400;500;600&display=swap');
 
 /* ═══════════════════════════════════════════════════════════════
    EVOLVION '26 — THE SUMMONS — Design System
@@ -571,3 +571,9 @@ input, textarea, select { font-family: 'DM Sans', sans-serif; outline: none; }
 .text-center { text-align: center; }
 .relative    { position: relative; }
 .overflow-hidden { overflow: hidden; }
+
+/* ── Sinhala language ─────────────────────────────────────── */
+.lang-si {
+  font-family: 'Noto Sans Sinhala', 'DM Sans', sans-serif;
+  line-height: 1.8; /* Sinhala script needs more vertical space */
+}

@@ -592,6 +592,93 @@
 .backBtn:hover { color: var(--text-2); }
 
 /* ── Footer ────────────────────────────────────────────────── */
+/* ── Language Picker ── */
+.langPicker {
+  width: 100%;
+  padding: 24px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.langPickerTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.langPickerSub {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 20px;
+  font-family: 'Noto Sans Sinhala', sans-serif;
+}
+.langBtnRow {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+.langBtn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: all 0.2s var(--ease);
+  cursor: pointer;
+}
+.langBtn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  box-shadow: 0 0 15px var(--accent-glow);
+  transform: translateY(-2px);
+}
+.langFlag {
+  font-size: 24px;
+  line-height: 1;
+}
+.langName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.langBtn:hover .langName {
+  color: var(--text);
+}
+.langSelectedBadge {
+  width: 100%;
+  padding: 14px 24px;
+  background: var(--accent-soft);
+  border-top: 1px solid rgba(0, 110, 170, 0.2);
+  border-bottom: 1px solid rgba(0, 110, 170, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-2);
+}
+.langChangeBtn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 110, 170, 0.3);
+  transition: all 0.2s;
+}
+.langChangeBtn:hover {
+  background: rgba(0, 110, 170, 0.1);
+  color: var(--text);
+}
+
 .footer {
   display: flex;
   align-items: center;
