@@ -63,7 +63,22 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
   const supabase = createAdminClient()
+  
+  // Get the registration details before deleting to use them for cleaning up evo_registrations
+  const { data: reg } = await supabase.from('registrations').select('school_name, contact_email').eq('id', id).single()
+
   const { error } = await supabase.from('registrations').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Also clean up evo_registrations to allow them to register again
+  if (reg) {
+    if (reg.contact_email) {
+      await supabase.from('evo_registrations').delete().eq('email', reg.contact_email)
+    }
+    if (reg.school_name) {
+      await supabase.from('evo_registrations').delete().ilike('school_name', reg.school_name.trim())
+    }
+  }
   return NextResponse.json({ ok: true })
 }
+
