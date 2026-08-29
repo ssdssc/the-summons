@@ -126,7 +126,10 @@ export default function QuizPage() {
         { event: 'UPDATE', schema: 'public', table: 'quiz_state', filter: `subject=eq.${member.subject}` },
         (payload: any) => {
           const { status, current_question_index, question_started_at } = payload.new
-          if (status === 'ended' || status === 'results_published') {
+          if (status === 'results_published') {
+            router.push('/summons/results'); return
+          }
+          if (status === 'ended') {
             setQuizStatus(status); return
           }
           if (question_started_at) setQuestionStartedAt(question_started_at)
@@ -316,8 +319,17 @@ export default function QuizPage() {
     )
   }
 
+  // ── Quiz ended redirect ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (quizStatus === 'results_published') {
+      router.push('/summons/results')
+    }
+  }, [quizStatus, router])
+
   // ── Quiz ended ────────────────────────────────────────────────────────────
   if (quizStatus === 'ended' || quizStatus === 'results_published') {
+    if (quizStatus === 'results_published') return null; // redirecting
+
     return (
       <main className={styles.main}>
         <div className="bg-grid" /><div className="bg-radial" />
@@ -325,10 +337,7 @@ export default function QuizPage() {
           <div className={styles.waitingOrbit}><div className={styles.orbitDot} /><div className={styles.orbitDot2} /></div>
           <div className={styles.waitingIcon}><CheckCircle size={36} strokeWidth={1.5} /></div>
           <h2 className={styles.waitingTitle}>Quiz Complete</h2>
-          <p className={styles.waitingDesc}>Your answers have been recorded.<br />{quizStatus === 'results_published' ? 'Results are ready!' : 'Waiting for results to be published...'}</p>
-          {quizStatus === 'results_published' && (
-            <button onClick={() => router.push('/summons/results')} className="btn btn-primary" style={{ marginTop: 16, minWidth: 200 }}>View Results →</button>
-          )}
+          <p className={styles.waitingDesc}>Your answers have been recorded.<br />Waiting for results to be published...</p>
           <div className={styles.finalScore}>
             <span className={styles.finalScoreLabel}>Quiz Ended</span>
           </div>

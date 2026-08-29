@@ -285,10 +285,10 @@ export default function ResultsPage() {
               return (
                 <div
                   key={row.memberId}
-                  className={`lb-row ${row.isMe ? styles.myRow : ''} ${isRevealed ? styles.lbRevealed : styles.lbHidden}`}
+                  className={`${styles.lbRow} ${row.isMe ? styles.myRow : ''} ${isRevealed ? styles.lbRevealed : styles.lbHidden}`}
                   style={{ animationDelay: `${i * 0.08}s` } as any}
                 >
-                  <span className={`lb-rank ${rankStyle.cls}`}>{rankStyle.label}</span>
+                  <span className={`${styles.lbRank} ${rankStyle.cls ? styles[rankStyle.cls as keyof typeof styles] : ''}`}>{rankStyle.label}</span>
                   <div className={styles.lbInfo}>
                     <div className={styles.lbSchool}>{row.schoolName}</div>
                     <div className={styles.lbMember}>{row.memberName}</div>
