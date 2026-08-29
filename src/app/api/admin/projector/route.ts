@@ -2,11 +2,6 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, type Subject } from '@/lib/supabase'
 
-const globalAny: any = global
-if (!globalAny.projectorSubject) {
-  globalAny.projectorSubject = 'auto'
-}
-
 function checkAdminAuth(req: NextRequest): boolean {
   return true
 }
@@ -67,7 +62,20 @@ export async function GET(req: NextRequest) {
   }
 
   // Determine active subject: if set to 'auto', check if any quiz is currently active
-  let currentActiveSubject = globalAny.projectorSubject
+  let currentActiveSubject = 'auto'
+  
+  // 1. Fetch saved config from DB
+  const { data: configRow } = await supabase
+    .from('quiz_state')
+    .select('status')
+    .eq('subject', 'projector_config')
+    .maybeSingle()
+    
+  if (configRow?.status) {
+    currentActiveSubject = configRow.status
+  }
+
+  // 2. If 'auto', find an active quiz
   if (currentActiveSubject === 'auto') {
     const { data: activeState } = await supabase
       .from('quiz_state')
@@ -75,7 +83,7 @@ export async function GET(req: NextRequest) {
       .eq('status', 'active')
       .limit(1)
       .maybeSingle()
-    if (activeState?.subject) {
+    if (activeState?.subject && activeState.subject !== 'projector_config') {
       currentActiveSubject = activeState.subject
     }
   }
@@ -91,6 +99,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!checkAdminAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { subject } = await req.json()
-  globalAny.projectorSubject = subject || 'auto'
-  return NextResponse.json({ ok: true, activeSubject: globalAny.projectorSubject })
+  
+  const targetSubject = subject || 'auto'
+  
+  const supabase = createAdminClient()
+  await supabase.from('quiz_state').upsert({
+    subject: 'projector_config',
+    status: targetSubject,
+    current_question_index: -1,
+  })
+  
+  return NextResponse.json({ ok: true, activeSubject: targetSubject })
 }
