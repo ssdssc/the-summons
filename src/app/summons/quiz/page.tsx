@@ -132,6 +132,9 @@ export default function QuizPage() {
     if (!q) return
     if (answers[q.id]) return // already answered
 
+    // Record the exact moment the user tapped — before the network round trip
+    const clientAnsweredAt = new Date().toISOString()
+
     setSubmitting(true)
     setFeedbackOption(option)
 
@@ -146,6 +149,7 @@ export default function QuizPage() {
           questionId: q.id,
           questionIndex: currentIndex,
           selectedOption: option,
+          clientAnsweredAt, // send tap time so server uses this for fast-answer check
         }),
       })
 

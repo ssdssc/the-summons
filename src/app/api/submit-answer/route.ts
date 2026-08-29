@@ -95,13 +95,20 @@ async function checkSpecialEventsAndNotify(
   sessionId: string | undefined,
   schoolName: string,
   memberName: string,
-  state: any
+  state: any,
+  clientAnsweredAt?: string
 ) {
   if (!isCorrect) return
 
   // 1. Check for Lightning Fast Answer (< 3.5 seconds)
+  // Use clientAnsweredAt if available — this is when the user actually tapped,
+  // making the check fair regardless of network speed
+  const tapTime = clientAnsweredAt
+    ? new Date(clientAnsweredAt).getTime()
+    : Date.now()
+
   if (state?.question_started_at) {
-    const elapsedSec = (Date.now() - new Date(state.question_started_at).getTime()) / 1000
+    const elapsedSec = (tapTime - new Date(state.question_started_at).getTime()) / 1000
     if (elapsedSec > 0.3 && elapsedSec <= 3.5) {
       emitProjectorNotification(supabase, {
         type: 'fast',
@@ -146,7 +153,7 @@ async function checkSpecialEventsAndNotify(
 
 export async function POST(req: NextRequest) {
   try {
-    const { memberId, quizId, subject, questionId, selectedOption, questionIndex } = await req.json()
+    const { memberId, quizId, subject, questionId, selectedOption, questionIndex, clientAnsweredAt } = await req.json()
 
     if (!memberId || !quizId || !subject || !questionId || !selectedOption) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -163,6 +170,17 @@ export async function POST(req: NextRequest) {
 
     if (!state || state.status !== 'active') {
       return NextResponse.json({ error: 'Quiz is not active' }, { status: 403 })
+    }
+
+    // Grace period: accept answers that arrived up to 3s after the question changed
+    // This protects slow-connection users who tapped before the question advanced
+    if (clientAnsweredAt && state.question_started_at) {
+      const tapTime = new Date(clientAnsweredAt).getTime()
+      const questionStart = new Date(state.question_started_at).getTime()
+      if (tapTime < questionStart - 1000) {
+        // User tapped more than 1 second before this question started — old answer, reject
+        return NextResponse.json({ error: 'Answer submitted for a previous question' }, { status: 409 })
+      }
     }
 
     // Get the correct answer for scoring
@@ -264,7 +282,8 @@ export async function POST(req: NextRequest) {
       activeSessionId,
       schoolName,
       memberName,
-      state
+      state,
+      clientAnsweredAt
     )
 
     return NextResponse.json({ isCorrect, pointsEarned, correctOption: question.correct_option })
