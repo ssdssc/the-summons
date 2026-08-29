@@ -133,6 +133,20 @@ CREATE POLICY "public_read_sessions"   ON quiz_sessions FOR SELECT TO anon USING
 
 -- Service role (used by Next.js API) bypasses RLS — no additional policies needed
 
+-- ── Realtime Live Chat Messages (YouTube-style live chat) ───────
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sender_name  TEXT NOT NULL,
+  school_name  TEXT,
+  message      TEXT NOT NULL,
+  is_pinned    BOOLEAN DEFAULT FALSE,
+  is_hidden    BOOLEAN DEFAULT FALSE,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC);
+ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
+
 -- ═══════════════════════════════════════════════════════════
 -- SAMPLE DATA: Insert a test school and members
 -- ═══════════════════════════════════════════════════════════

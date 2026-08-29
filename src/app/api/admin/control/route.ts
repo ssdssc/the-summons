@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
 
     const { data: q } = await supabase
       .from('questions')
-      .select('id, order_index, correct_option, question_text')
+      .select('id, order_index, correct_option, question_text, time_seconds')
       .eq('quiz_id', quiz.id)
       .order('order_index')
 

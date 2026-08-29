@@ -72,10 +72,10 @@ export async function DELETE(req: NextRequest) {
 
   // Also clean up evo_registrations to allow them to register again
   if (reg) {
-    if (reg.contact_email) {
+    if (reg.contact_email && reg.contact_email.trim() !== '') {
       await supabase.from('evo_registrations').delete().eq('email', reg.contact_email)
     }
-    if (reg.school_name) {
+    if (reg.school_name && reg.school_name.trim() !== '') {
       await supabase.from('evo_registrations').delete().ilike('school_name', reg.school_name.trim())
     }
   }

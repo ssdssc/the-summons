@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase, SUBJECT_CONFIG, type Subject } from '@/lib/supabase'
 import { SubjectIcon } from './SubjectIcon'
-import { AlertTriangle, Play, Pause, Square, Trophy, Save, ChevronRight, CheckCircle, RotateCcw } from 'lucide-react'
+import { AlertTriangle, Play, Square, Trophy, CheckCircle, RotateCcw, Timer } from 'lucide-react'
 import styles from './QuizController.module.css'
 
 interface Props {
@@ -14,10 +14,23 @@ interface Props {
 
 export default function QuizController({ subject, token, onStateChange }: Props) {
   const [state, setState] = useState<any>(null)
-  const [questionCount, setQuestionCount] = useState(0)
+  const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const countdownRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const autoAdvancingRef = useRef(false)
   const cfg = SUBJECT_CONFIG[subject]
+
+  const loadState = useCallback(async () => {
+    const res = await fetch(`/api/admin/control?subject=${subject}`, {
+      headers: { 'x-admin-token': token },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    setState(data.state)
+    setQuestions(data.questions ?? [])
+  }, [subject, token])
 
   // Load state + listen realtime
   useEffect(() => {
@@ -28,17 +41,43 @@ export default function QuizController({ subject, token, onStateChange }: Props)
         (p: any) => setState(p.new))
       .subscribe()
     return () => { ch.unsubscribe() }
-  }, [subject])
+  }, [subject, loadState])
 
-  async function loadState() {
-    const res = await fetch(`/api/admin/control?subject=${subject}`, {
-      headers: { 'x-admin-token': token },
-    })
-    if (!res.ok) return
-    const data = await res.json()
-    setState(data.state)
-    setQuestionCount(data.questions?.length ?? 0)
-  }
+  // Auto-advance countdown
+  useEffect(() => {
+    clearInterval(countdownRef.current)
+    setCountdown(null)
+    autoAdvancingRef.current = false
+
+    if (state?.status !== 'active' || state?.current_question_index < 0) return
+
+    const currentQ = questions[state.current_question_index]
+    if (!currentQ || !state.question_started_at) return
+
+    const timeLimitMs = (currentQ.time_seconds ?? 30) * 1000
+    const startedAt = new Date(state.question_started_at).getTime()
+
+    function tick() {
+      const elapsed = Date.now() - startedAt
+      const remaining = Math.ceil((timeLimitMs - elapsed) / 1000)
+
+      if (remaining <= 0) {
+        clearInterval(countdownRef.current)
+        setCountdown(0)
+        if (!autoAdvancingRef.current) {
+          autoAdvancingRef.current = true
+          doAction('next')
+        }
+      } else {
+        setCountdown(remaining)
+      }
+    }
+
+    tick()
+    countdownRef.current = setInterval(tick, 250)
+    return () => clearInterval(countdownRef.current)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.current_question_index, state?.question_started_at, state?.status, questions])
 
   async function doAction(action: string) {
     setLoading(true)
@@ -53,22 +92,28 @@ export default function QuizController({ subject, token, onStateChange }: Props)
       setMsg('error:' + json.error)
     } else {
       setMsg(action === 'start'          ? 'Quiz started!' :
-             action === 'next'           ? `Advanced to Q${(state?.current_question_index ?? 0) + 2}` :
              action === 'end'            ? 'Quiz ended.' :
              action === 'reset'          ? 'Quiz reset to waiting.' :
              'Results published!')
       onStateChange()
+      loadState()
     }
     setLoading(false)
     setTimeout(() => setMsg(''), 3000)
+    autoAdvancingRef.current = false
   }
 
   const status = state?.status ?? 'waiting'
-  const currentQ = state?.current_question_index ?? -1
+  const currentQIdx = state?.current_question_index ?? -1
+  const questionCount = questions.length
   const isWaiting = status === 'waiting'
   const isActive  = status === 'active'
   const isEnded   = status === 'ended'
   const isPublished = status === 'results_published'
+
+  const currentQ = isActive && currentQIdx >= 0 ? questions[currentQIdx] : null
+  const timeLimitSec = currentQ?.time_seconds ?? 30
+  const countdownPct = countdown !== null ? Math.max(0, (countdown / timeLimitSec) * 100) : 100
 
   return (
     <div className={styles.wrap}>
@@ -85,12 +130,35 @@ export default function QuizController({ subject, token, onStateChange }: Props)
       <div className={styles.progressWrap}>
         <div className={styles.progressRow}>
           <span className={styles.progressLabel}>Question</span>
-          <span className={styles.progressVal}>{isActive ? currentQ + 1 : '—'} / {questionCount}</span>
+          <span className={styles.progressVal}>{isActive ? currentQIdx + 1 : '—'} / {questionCount}</span>
         </div>
         <div className="progress-track">
-          <div className="progress-fill" style={{ width: questionCount > 0 && isActive ? `${((currentQ + 1) / questionCount) * 100}%` : '0%' }} />
+          <div className="progress-fill" style={{ width: questionCount > 0 && isActive ? `${((currentQIdx + 1) / questionCount) * 100}%` : '0%' }} />
         </div>
       </div>
+
+      {/* Countdown timer — shown when active */}
+      {isActive && countdown !== null && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: countdown <= 5 ? '#ef4444' : 'var(--text-2)' }}>
+              <Timer size={14} /> Auto-advancing in
+            </span>
+            <span style={{ fontWeight: 700, fontSize: 22, color: countdown <= 5 ? '#ef4444' : 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+              {countdown}s
+            </span>
+          </div>
+          <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${countdownPct}%`,
+              background: countdown <= 5 ? '#ef4444' : 'var(--accent)',
+              transition: 'width 0.25s linear, background 0.3s',
+              borderRadius: 4,
+            }} />
+          </div>
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className={styles.actions}>
@@ -101,14 +169,9 @@ export default function QuizController({ subject, token, onStateChange }: Props)
         )}
 
         {isActive && (
-          <>
-            <button className={`btn btn-primary ${styles.bigBtn}`} onClick={() => doAction('next')} disabled={loading}>
-              {loading ? <span className={styles.spin} /> : <><ChevronRight size={16} className="inline-block mr-2" /> Next Question</>}
-            </button>
-            <button className={`btn btn-danger ${styles.bigBtn}`} onClick={() => doAction('end')} disabled={loading}>
-              {loading ? <span className={styles.spin} /> : <><Square size={16} className="inline-block mr-2" /> End Quiz</>}
-            </button>
-          </>
+          <button className={`btn btn-danger ${styles.bigBtn}`} onClick={() => doAction('end')} disabled={loading}>
+            {loading ? <span className={styles.spin} /> : <><Square size={16} className="inline-block mr-2" /> End Quiz</>}
+          </button>
         )}
 
         {isEnded && (

@@ -1,14 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { Lock, AlertTriangle } from 'lucide-react'
+import PresenceFooter from './components/PresenceFooter'
 import styles from './layout.module.css'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [authed, setAuthed] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
+
+  useEffect(() => {
+    const token = sessionStorage.getItem('admin_token')
+    if (token) {
+      fetch('/api/admin/quizzes', {
+        headers: { 'x-admin-token': token },
+      }).then(res => {
+        if (res.ok) {
+          setAuthed(true)
+        } else {
+          sessionStorage.removeItem('admin_token')
+        }
+        setIsInitializing(false)
+      }).catch(() => setIsInitializing(false))
+    } else {
+      setIsInitializing(false)
+    }
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -28,6 +50,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setError('Invalid admin password. Try again.')
     }
     setLoading(false)
+  }
+
+  const isProjector = pathname?.startsWith('/admin/projector')
+
+  if (isProjector) {
+    return <>{children}</>
+  }
+
+  if (isInitializing) {
+    return (
+      <div className={styles.loginWrap} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="bg-grid" />
+        <span className={styles.spinner} style={{ width: 24, height: 24, borderTopColor: 'var(--accent)' }} />
+      </div>
+    )
   }
 
   if (!authed) {
@@ -60,5 +97,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
-  return <>{children}</>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {children}
+      </div>
+      <PresenceFooter />
+    </div>
+  )
 }

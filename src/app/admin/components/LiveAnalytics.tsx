@@ -50,11 +50,14 @@ export default function LiveAnalytics({ subject, token }: Props) {
       .subscribe()
 
     return () => { clearInterval(pollRef.current); ch.unsubscribe() }
-  }, [subject])
+  }, [subject, token])
 
   async function fetchAnalytics() {
+    const t = token || (typeof window !== 'undefined' ? sessionStorage.getItem('admin_token') || '' : '')
+    if (!t) return
+
     const res = await fetch(`/api/admin/control?subject=${subject}`, {
-      headers: { 'x-admin-token': token },
+      headers: { 'x-admin-token': t },
     })
     if (!res.ok) return
     const data = await res.json()
@@ -176,10 +179,10 @@ export default function LiveAnalytics({ subject, token }: Props) {
           <div className={styles.schoolGrid}>
             {sessions
               .sort((a, b) => b.totalScore - a.totalScore)
-              .map(s => {
+              .map((s, i) => {
                 const hasAnsweredCurrent = s.answeredCount > currentQIndex
                 return (
-                  <div key={s.memberId} className={`${styles.schoolCard} ${hasAnsweredCurrent ? styles.schoolCardAnswered : ''}`}>
+                  <div key={s.memberId || `school-${i}`} className={`${styles.schoolCard} ${hasAnsweredCurrent ? styles.schoolCardAnswered : ''}`}>
                     <div className={styles.schoolIndicator}>
                       <span className={`status-dot ${hasAnsweredCurrent ? 'live' : 'waiting'}`} />
                     </div>
@@ -207,7 +210,7 @@ export default function LiveAnalytics({ subject, token }: Props) {
               .sort((a, b) => b.totalScore - a.totalScore)
               .slice(0, 10)
               .map((s, i) => (
-                <div key={s.memberId} className={styles.rankRow}>
+                <div key={s.memberId || `rank-${i}`} className={styles.rankRow}>
                   <span className={`lb-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}`}>
                     {i === 0 ? <Medal color="#fbbf24" size={16} /> :
                      i === 1 ? <Medal color="#94a3b8" size={16} /> :

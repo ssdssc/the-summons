@@ -5,41 +5,41 @@
   justify-content: center;
   padding: 24px;
   position: relative;
+  background-color: #080808;
 }
 .loginCard {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 400px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 24px;
-  padding: 40px 36px;
+  max-width: 380px;
+  background: #0f0f0f;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 36px 32px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+  gap: 24px;
 }
-.loginBranding { text-align: center; display: flex; flex-direction: column; gap: 8px; }
-.loginLock { font-size: 40px; }
-.loginTitle { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; }
-.loginSub { font-size: 13px; color: var(--text-3); }
-.loginForm { display: flex; flex-direction: column; gap: 12px; }
+.loginBranding { text-align: center; display: flex; flex-direction: column; gap: 6px; }
+.loginLock { font-size: 32px; }
+.loginTitle { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.loginSub { font-size: 12px; color: var(--text-3); }
+.loginForm { display: flex; flex-direction: column; gap: 10px; }
 .loginError {
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.25);
-  color: #ff6b6b;
-  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(239,68,68,0.05);
+  border: 1px solid rgba(239,68,68,0.15);
+  color: var(--red);
+  font-size: 12px;
   font-weight: 500;
 }
 .spinner {
-  width: 18px; height: 18px;
+  width: 16px; height: 16px;
   border: 2px solid rgba(255,255,255,0.3);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   display: inline-block;
 }
+

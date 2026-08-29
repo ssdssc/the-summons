@@ -11,7 +11,7 @@ interface Props { subject: Subject; token: string }
 const SUBJECTS: Subject[] = ['biology', 'chemistry', 'physics', 'maths']
 
 export default function QuizSettings({ subject, token }: Props) {
-  const [form, setForm] = useState({ title: '', scheduledAt: '', correctPoints: 4, negativePoints: 1 })
+  const [form, setForm] = useState({ title: '', scheduledAt: '', correctPoints: 4, negativePoints: 0 })
   const [allSchedules, setAllSchedules] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
@@ -37,10 +37,10 @@ export default function QuizSettings({ subject, token }: Props) {
         title: q.title ?? `${cfg.label} Quiz`,
         scheduledAt: q.scheduled_at ? new Date(q.scheduled_at).toISOString().slice(0, 16) : '',
         correctPoints: q.correct_points ?? 4,
-        negativePoints: q.negative_points ?? 1,
+        negativePoints: 0,
       })
     } else {
-      setForm(f => ({ ...f, title: `${cfg.label} Quiz` }))
+      setForm(f => ({ ...f, title: `${cfg.label} Quiz`, negativePoints: 0 }))
     }
   }
 
@@ -49,7 +49,7 @@ export default function QuizSettings({ subject, token }: Props) {
     const res = await fetch('/api/admin/quizzes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
-      body: JSON.stringify({ subject, title: form.title, scheduledAt: form.scheduledAt || null, correctPoints: form.correctPoints, negativePoints: form.negativePoints }),
+      body: JSON.stringify({ subject, title: form.title, scheduledAt: form.scheduledAt || null, correctPoints: form.correctPoints, negativePoints: 0 }),
     })
     setSaving(false)
     if (res.ok) {
@@ -82,23 +82,17 @@ export default function QuizSettings({ subject, token }: Props) {
 
         <div className={styles.scoring}>
           <h4 className={styles.scoringTitle}>Scoring System</h4>
-          <div className={styles.scoringGrid}>
+          <div className={styles.scoringGrid} style={{ gridTemplateColumns: '1fr' }}>
             <div className={styles.field}>
               <label className={styles.label}>Points for Correct Answer</label>
-              <input type="number" className="input" min={0} value={form.correctPoints} onChange={e => setForm(f => ({ ...f, correctPoints: +e.target.value }))} />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Points Deducted for Wrong</label>
-              <input type="number" className="input" min={0} value={form.negativePoints} onChange={e => setForm(f => ({ ...f, negativePoints: +e.target.value }))} />
-              <p className={styles.hint}>Set to 0 for no negative marking.</p>
+              <input type="number" className="input" min={1} value={form.correctPoints} onChange={e => setForm(f => ({ ...f, correctPoints: +e.target.value }))} />
+              <p className={styles.hint}>No points are deducted for wrong or skipped answers.</p>
             </div>
           </div>
           <div className={styles.scoringPreview}>
             <span className={styles.spCorrect}>+{form.correctPoints} correct</span>
             <span className={styles.spSep}>/</span>
-            <span className={styles.spWrong}>−{form.negativePoints} wrong</span>
-            <span className={styles.spSep}>/</span>
-            <span className={styles.spSkip}>0 unanswered</span>
+            <span className={styles.spSkip}>0 wrong or skipped</span>
           </div>
         </div>
 

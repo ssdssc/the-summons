@@ -32,6 +32,7 @@ interface Question {
   id: string; order_index: number; question_text: string
   option_a: string; option_b: string; option_c: string; option_d: string; option_e: string | null
   correct_option: string; points: number; negative_points: number; image_url: string | null
+  time_seconds: number
   // Sinhala translations
   question_text_si: string | null
   option_a_si: string | null; option_b_si: string | null
@@ -40,7 +41,7 @@ interface Question {
 
 const EMPTY_Q = {
   question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', option_e: '',
-  correct_option: 'A', points: 4, negative_points: 1, image_url: '',
+  correct_option: 'A', points: 4, negative_points: 1, image_url: '', time_seconds: 30,
   question_text_si: '', option_a_si: '', option_b_si: '', option_c_si: '', option_d_si: '', option_e_si: '',
 }
 
@@ -80,8 +81,15 @@ function SortableQuestionCard({
         <p className={styles.qText}>{q.question_text}</p>
         {hasSinhala && (
           <p className={styles.qText} style={{ color: 'var(--text-3)', fontSize: 13, marginTop: 2 }}>
-            🇱🇰 {q.question_text_si}
+            {q.question_text_si}
           </p>
+        )}
+        {q.image_url && (
+          <img
+            src={q.image_url}
+            alt="Question image"
+            style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 8, marginTop: 6, objectFit: 'contain', background: 'var(--surface-2)' }}
+          />
         )}
         <div className={styles.qOptions}>
           {['A', 'B', 'C', 'D', ...(q.option_e ? ['E'] : [])].map(opt => {
@@ -117,26 +125,34 @@ function SortableQuestionCard({
   )
 }
 
-// ── Language tab button ──────────────────────────────────────
-function LangTab({ lang, active, onClick }: { lang: 'en' | 'si'; active: boolean; onClick: () => void }) {
+// ── Language toggle switch ───────────────────────────────────
+function LangSwitch({ lang, onChange }: { lang: 'en' | 'si'; onChange: (l: 'en' | 'si') => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
-        background: active ? 'var(--accent-soft)' : 'var(--surface)',
-        color: active ? 'var(--accent-2)' : 'var(--text-3)',
-        transition: 'all 0.2s',
+        display: 'inline-flex', alignItems: 'center', gap: 0,
+        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 8, padding: 3,
       }}
     >
-      {lang === 'en' ? '🇬🇧 English' : '🇱🇰 සිංහල'}
-      {lang === 'si' && !active && (
-        <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }}>optional</span>
-      )}
-    </button>
+      {(['en', 'si'] as const).map(l => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => onChange(l)}
+          style={{
+            padding: '5px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            border: 'none',
+            background: lang === l ? 'rgba(0, 136, 204, 0.18)' : 'transparent',
+            color: lang === l ? 'var(--text)' : 'var(--text-3)',
+            transition: 'all 0.15s',
+            outline: lang === l ? '1px solid rgba(0,136,204,0.35)' : 'none',
+          }}
+        >
+          {l === 'en' ? 'English' : 'සිංහල'}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -250,6 +266,7 @@ export default function QuestionManager({ subject, token }: Props) {
       question_text: q.question_text,
       option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, option_e: q.option_e ?? '',
       correct_option: q.correct_option, points: q.points, negative_points: q.negative_points, image_url: q.image_url ?? '',
+      time_seconds: q.time_seconds ?? 30,
       question_text_si: q.question_text_si ?? '',
       option_a_si: q.option_a_si ?? '', option_b_si: q.option_b_si ?? '',
       option_c_si: q.option_c_si ?? '', option_d_si: q.option_d_si ?? '', option_e_si: q.option_e_si ?? '',
@@ -385,26 +402,16 @@ export default function QuestionManager({ subject, token }: Props) {
         <div className={styles.formWrap}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <h3 className={styles.formTitle} style={{ marginBottom: 0 }}>{editId ? 'Edit Question' : 'Add New Question'}</h3>
-            {/* Language tabs */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <LangTab lang="en" active={formLang === 'en'} onClick={() => setFormLang('en')} />
-              <LangTab lang="si" active={formLang === 'si'} onClick={() => setFormLang('si')} />
-            </div>
+            {/* Language switch */}
+            <LangSwitch lang={formLang} onChange={setFormLang} />
           </div>
 
-          {/* Sinhala info banner */}
-          {isSi && (
-            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid rgba(0,136,204,0.25)', fontSize: 13, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Globe size={14} style={{ color: 'var(--accent-2)', flexShrink: 0 }} />
-              Sinhala translations are <strong style={{ color: 'var(--text)' }}>optional</strong>. Leave blank and English will be shown to users who select Sinhala.
-            </div>
-          )}
 
           <div className={styles.formGrid}>
             {/* Question text */}
             <div className={styles.formField}>
               <label className={styles.label}>
-                {isSi ? '🇱🇰 Question Text (Sinhala)' : '🇬🇧 Question Text *'}
+                {isSi ? 'Question Text (Sinhala)' : 'Question Text (English)'}
               </label>
               <textarea
                 className={`input ${styles.textarea} ${isSi ? 'lang-si' : ''}`}
@@ -418,17 +425,15 @@ export default function QuestionManager({ subject, token }: Props) {
               />
             </div>
 
-            {/* Image — only on English tab */}
-            {!isSi && (
-              <div className={styles.formField}>
-                <label className={styles.label}>Question Image (optional)</label>
-                <ImageUploader
-                  value={form.image_url || null}
-                  onChange={(url) => setForm(f => ({ ...f, image_url: url ?? '' }))}
-                  adminToken={token}
-                />
-              </div>
-            )}
+            {/* Image — shared between both language tabs */}
+            <div className={styles.formField}>
+              <label className={styles.label}>Question Image (optional)</label>
+              <ImageUploader
+                value={form.image_url || null}
+                onChange={(url) => setForm(f => ({ ...f, image_url: url ?? '' }))}
+                adminToken={token}
+              />
+            </div>
 
             {/* Options */}
             <div className={styles.optionsGrid}>
@@ -440,16 +445,12 @@ export default function QuestionManager({ subject, token }: Props) {
                     <label className={styles.optionLabel}>
                       <span className={`${styles.optLetter} ${form.correct_option === opt ? styles.optLetterActive : ''}`}>{opt}</span>
                       {isOptE && <span className={styles.optionalTag}>optional</span>}
-                      {isSi && <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 4 }}>🇱🇰</span>}
                     </label>
                     <input
                       className={`input ${isSi ? 'lang-si' : ''}`}
                       value={form[key] as string ?? ''}
                       onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      placeholder={isSi
-                        ? `විකල්පය ${opt}${isOptE ? ' (නොමැතිනම් හිස් තබන්න)' : ''}`
-                        : `Option ${opt}${isOptE ? ' (leave blank if not needed)' : ''}`
-                      }
+                      placeholder={`Option ${opt}${isOptE ? ' (leave blank if not needed)' : ''}`}
                     />
                   </div>
                 )
@@ -471,7 +472,7 @@ export default function QuestionManager({ subject, token }: Props) {
               </div>
             )}
 
-            {/* Points — only on English tab */}
+            {/* Points + Time — only on English tab */}
             {!isSi && (
               <div className={styles.pointsRow}>
                 <div className={styles.formField}>
@@ -481,6 +482,10 @@ export default function QuestionManager({ subject, token }: Props) {
                 <div className={styles.formField}>
                   <label className={styles.label}>Negative (wrong)</label>
                   <input type="number" className="input" value={form.negative_points} min={0} onChange={e => setForm(f => ({ ...f, negative_points: +e.target.value }))} />
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.label}>Time (seconds)</label>
+                  <input type="number" className="input" value={form.time_seconds} min={5} max={300} onChange={e => setForm(f => ({ ...f, time_seconds: +e.target.value }))} />
                 </div>
               </div>
             )}

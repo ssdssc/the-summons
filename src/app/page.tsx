@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import styles from './page.module.css'
 
-const TARGET = new Date('2026-08-30T00:00:00+05:30')
+const TARGET = new Date('2026-08-30T21:00:00+05:30')
 
 interface Countdown {
   days: number
@@ -167,7 +167,7 @@ export default function LandingPage() {
           Check back then to register and compete.
         </p>
 
-        <a href="/summons" className={styles.btnBack} id="go-to-portal">
+        <a href="https://www.ssdssc.com/evo/register" className={styles.btnBack} id="go-to-portal">
           Go to Registration
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M5.5 2.5L10 7L5.5 11.5" stroke="currentColor" strokeWidth="1.5"
