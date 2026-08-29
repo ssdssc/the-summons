@@ -30,7 +30,7 @@ interface Question {
 }
 
 // ── Tiny Web Audio sound effects (no external files needed) ──────────────────
-function playSound(type: 'correct' | 'wrong') {
+function playSound() {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
     const osc = ctx.createOscillator()
@@ -38,17 +38,10 @@ function playSound(type: 'correct' | 'wrong') {
     osc.connect(gain)
     gain.connect(ctx.destination)
     gain.gain.setValueAtTime(0.25, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
-    if (type === 'correct') {
-      osc.frequency.setValueAtTime(523, ctx.currentTime)       // C5
-      osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1) // E5
-      osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2) // G5
-    } else {
-      osc.frequency.setValueAtTime(300, ctx.currentTime)
-      osc.frequency.setValueAtTime(200, ctx.currentTime + 0.15)
-    }
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+    osc.frequency.setValueAtTime(600, ctx.currentTime)
     osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + 0.5)
+    osc.stop(ctx.currentTime + 0.3)
   } catch { /* audio blocked */ }
 }
 
@@ -283,7 +276,7 @@ export default function QuizPage() {
       })
       const result = await res.json()
       if (res.ok) {
-        playSound(result.isCorrect ? 'correct' : 'wrong')
+        playSound()
         setAnswers(prev => ({ ...prev, [q.id]: { selected: option, correct: result.correctOption, isCorrect: result.isCorrect } }))
         setScore(prev => Math.max(0, prev + result.pointsEarned))
       }
@@ -304,8 +297,7 @@ export default function QuizPage() {
   const getOptionClass = (opt: string) => {
     if (pendingOption === opt && !answered) return 'option-btn pending'
     if (!answered) return 'option-btn'
-    if (opt === answered.correct) return 'option-btn correct'
-    if (opt === answered.selected && !answered.isCorrect) return 'option-btn wrong'
+    if (opt === answered.selected) return 'option-btn selected'
     return 'option-btn'
   }
 
@@ -338,8 +330,7 @@ export default function QuizPage() {
             <button onClick={() => router.push('/summons/results')} className="btn btn-primary" style={{ marginTop: 16, minWidth: 200 }}>View Results →</button>
           )}
           <div className={styles.finalScore}>
-            <span className={styles.finalScoreLabel}>Your Score</span>
-            <span className={styles.finalScoreNum}>{score}</span>
+            <span className={styles.finalScoreLabel}>Quiz Ended</span>
           </div>
         </div>
       </main>
@@ -399,10 +390,6 @@ export default function QuizPage() {
             <span className={styles.qNum}>{currentIndex + 1}</span>
             <span className={styles.qTotal}>/ {questions.length}</span>
           </div>
-          <div className={styles.scoreDisplay}>
-            <span className={styles.scoreLabel}>Score</span>
-            <span className={styles.scoreNum}>{score}</span>
-          </div>
         </div>
 
         {/* Progress bar */}
@@ -450,12 +437,6 @@ export default function QuizPage() {
             <div className={styles.qIndex}>Q{currentIndex + 1}</div>
             <p className={`${styles.questionText} ${isSi && currentQuestion.question_text_si ? 'lang-si' : ''}`}>{qText}</p>
           </div>
-          <div className={styles.pointsInfo}>
-            <span className={styles.pointsCorrect}>+{currentQuestion.points} correct</span>
-            {currentQuestion.negative_points > 0 && (
-              <span className={styles.pointsWrong}>−{currentQuestion.negative_points} wrong</span>
-            )}
-          </div>
           <div className={styles.optionsGrid}>
             {options.map(opt => (
               <button
@@ -466,14 +447,12 @@ export default function QuizPage() {
               >
                 <span className="option-letter">{opt.key}</span>
                 <span className={`${styles.optionText} ${isSi && currentQuestion[`option_${opt.key.toLowerCase()}_si` as keyof Question] ? 'lang-si' : ''}`}>{opt.text}</span>
-                {answered && opt.key === answered.correct && <span className={styles.correctMark}>✓</span>}
-                {answered && opt.key === answered.selected && !answered.isCorrect && <span className={styles.wrongMark}>✗</span>}
               </button>
             ))}
           </div>
           {answered && (
-            <div className={`${styles.feedback} ${answered.isCorrect ? styles.feedbackCorrect : styles.feedbackWrong} anim-fade-up`}>
-              {answered.isCorrect ? `✓ Correct! +${currentQuestion.points} points` : `✗ Incorrect. Correct answer: ${answered.correct}`}
+            <div className={`${styles.feedback} anim-fade-up`} style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+              ✓ Answer submitted.
             </div>
           )}
           {!answered && !pendingOption && (
