@@ -31,6 +31,7 @@ interface ReviewItem {
   pointsEarned: number
   points: number
   negativePoints: number
+  responseTimeSec: number | null
 }
 
 export default function ResultsPage() {
@@ -164,6 +165,7 @@ export default function ResultsPage() {
         pointsEarned: ans?.pointsEarned ?? 0,
         points: q.points,
         negativePoints: q.negative_points,
+        responseTimeSec: typeof ans?.responseTimeSec === 'number' ? ans.responseTimeSec : null,
       }
     })
 
@@ -316,13 +318,29 @@ export default function ResultsPage() {
               >
                 <div className={styles.reviewHeader}>
                   <span className={styles.reviewQNum}>Q{item.questionIndex + 1}</span>
-                  <span className={styles.reviewStatus}>
-                    {item.selectedOption === null
-                      ? <><Minus size={13} /> Skipped</>
-                      : item.isCorrect
-                        ? <><Check size={13} /> +{item.pointsEarned}</>
-                        : <><X size={13} /> {item.pointsEarned}</>}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                    {item.responseTimeSec !== null && (
+                      <span style={{
+                        fontSize: '11px',
+                        fontFamily: "'DM Mono', monospace",
+                        color: item.responseTimeSec <= 5 ? 'var(--green)'
+                             : item.responseTimeSec <= 15 ? '#f59e0b'
+                             : 'var(--text-3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                      }}>
+                        ⚡ {item.responseTimeSec}s
+                      </span>
+                    )}
+                    <span className={styles.reviewStatus}>
+                      {item.selectedOption === null
+                        ? <><Minus size={13} /> Skipped</>
+                        : item.isCorrect
+                          ? <><Check size={13} /> +{item.pointsEarned}</>
+                          : <><X size={13} /> {item.pointsEarned}</>}
+                    </span>
+                  </div>
                 </div>
 
                 {item.imageUrl && (

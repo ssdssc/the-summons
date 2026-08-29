@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { randomUUID } from 'crypto'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +22,13 @@ export async function POST(req: NextRequest) {
     if (memberErr || !member) {
       return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
     }
+
+    // Generate a new session token — invalidates any existing session on another device
+    const sessionToken = randomUUID()
+    await supabase
+      .from('members')
+      .update({ session_token: sessionToken })
+      .eq('id', member.id)
 
     // Get school name and logo
     const { data: registration } = await supabase
@@ -44,6 +52,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     return NextResponse.json({
+      sessionToken,
       member: {
         id: member.id,
         name: member.name,

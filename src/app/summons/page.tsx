@@ -134,6 +134,11 @@ export default function SummonsPage() {
       setData(json)
       setQuizStatus(json.quiz?.status ?? 'waiting')
 
+      // Persist session token for dual-device kick detection
+      if (json.sessionToken) {
+        sessionStorage.setItem('summons_session_token', json.sessionToken)
+      }
+
       // If already active, go straight to quiz (after lang pick handled below)
       // We still show the member card first so they can pick language
 

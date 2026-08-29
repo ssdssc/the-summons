@@ -472,6 +472,22 @@ input, textarea, select { font-family: 'DM Sans', sans-serif; outline: none; }
   border-color: var(--red);
   color: white;
 }
+/* Optimistic pending state: shown immediately on tap before server responds */
+.option-btn.pending {
+  background: rgba(0, 110, 170, 0.08);
+  border-color: rgba(0, 110, 170, 0.4);
+  animation: pending-pulse 0.7s ease infinite alternate;
+}
+.option-btn.pending .option-letter {
+  background: rgba(0, 110, 170, 0.35);
+  border-color: var(--accent);
+  color: white;
+}
+@keyframes pending-pulse {
+  from { box-shadow: 0 0 10px rgba(0, 110, 170, 0.15); }
+  to   { box-shadow: 0 0 28px rgba(0, 110, 170, 0.38); }
+}
+
 
 /* ── Leaderboard row ───────────────────────────────────────── */
 .lb-row {

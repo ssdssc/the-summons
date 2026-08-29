@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
     const { data: s } = await supabase
       .from('quiz_sessions')
       .select(`
-        id, total_score, rank, answers,
+        id, total_score, rank, answers, cheat_flags,
         members!inner(id, name, registration_id,
           registrations!inner(school_name))
       `)

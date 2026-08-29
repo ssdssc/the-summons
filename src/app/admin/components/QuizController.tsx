@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase, SUBJECT_CONFIG, type Subject } from '@/lib/supabase'
 import { SubjectIcon } from './SubjectIcon'
-import { AlertTriangle, Play, Square, Trophy, CheckCircle, RotateCcw, Timer } from 'lucide-react'
+import { AlertTriangle, Play, Square, Trophy, CheckCircle, RotateCcw, Timer, Download } from 'lucide-react'
 import styles from './QuizController.module.css'
 
 interface Props {
@@ -103,6 +103,18 @@ export default function QuizController({ subject, token, onStateChange }: Props)
     autoAdvancingRef.current = false
   }
 
+  async function exportCSV() {
+    const url = `/api/admin/export-csv?subject=${subject}`
+    const res = await fetch(url, { headers: { 'x-admin-token': token } })
+    if (!res.ok) { alert('Export failed'); return }
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `summons-${subject}-results.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   const status = state?.status ?? 'waiting'
   const currentQIdx = state?.current_question_index ?? -1
   const questionCount = questions.length
@@ -179,6 +191,9 @@ export default function QuizController({ subject, token, onStateChange }: Props)
             <button className={`btn btn-primary ${styles.bigBtn}`} onClick={() => doAction('publish_results')} disabled={loading}>
               {loading ? <span className={styles.spin} /> : <><Trophy size={16} /> Publish Results</>}
             </button>
+            <button className={`btn btn-ghost ${styles.bigBtn}`} onClick={exportCSV}>
+              <Download size={14} /> Export CSV
+            </button>
             <button className={`btn btn-ghost ${styles.bigBtn}`} onClick={() => { if (confirm('Reset quiz? This will delete all participant sessions.')) doAction('reset') }} disabled={loading}>
               {loading ? <span className={styles.spin} /> : <><RotateCcw size={15} /> Reset to Waiting</>}
             </button>
@@ -188,6 +203,9 @@ export default function QuizController({ subject, token, onStateChange }: Props)
         {isPublished && (
           <>
             <div className={styles.doneBadge}><CheckCircle size={16} /> Results Published</div>
+            <button className={`btn btn-ghost ${styles.bigBtn}`} onClick={exportCSV}>
+              <Download size={14} /> Export CSV
+            </button>
             <button className={`btn btn-ghost ${styles.bigBtn}`} onClick={() => { if (confirm('Reset quiz? This will delete all participant sessions and unpublish results.')) doAction('reset') }} disabled={loading}>
               {loading ? <span className={styles.spin} /> : <><RotateCcw size={15} /> Reset to Waiting</>}
             </button>

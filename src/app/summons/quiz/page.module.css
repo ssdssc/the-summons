@@ -80,6 +80,44 @@
   margin-bottom: 4px;
 }
 
+/* ── Per-question timer ────────────────────────────────────── */
+.timerWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.timerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.timerLabel {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.3s;
+}
+.timerNum {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
+}
+.timerTrack {
+  height: 5px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.timerFill {
+  height: 100%;
+  border-radius: 999px;
+}
+
 /* ── Question Card ─────────────────────────────────────────── */
 .questionCard {
   background: rgba(255,255,255,0.04);
@@ -91,6 +129,9 @@
   gap: 20px;
   backdrop-filter: blur(20px);
   box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  /* Anti-cheat: prevent text selection/copying */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .cardEnter {
@@ -344,3 +385,62 @@
   .questionText { font-size: 16px; }
   .topBar { flex-wrap: wrap; }
 }
+
+/* ── Print blocking (Ctrl+P trick prevention) ──────────────── */
+@media print {
+  body { display: none !important; }
+}
+
+/* ── Fullscreen / Kicked modal ─────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modalCard {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 48px 40px;
+  max-width: 420px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.modalIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 110, 170, 0.12);
+  border: 1px solid rgba(0, 110, 170, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.modalTitle {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.modalDesc {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.65;
+}
+

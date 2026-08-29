@@ -161,34 +161,41 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient()
 
-    // Verify quiz is still active
-    const { data: state } = await supabase
-      .from('quiz_state')
-      .select('status, current_question_index, question_started_at')
-      .eq('subject', subject)
-      .single()
+    // ── Run independent queries in parallel for speed ──────────
+    const [stateResult, questionResult, memberResult] = await Promise.all([
+      supabase
+        .from('quiz_state')
+        .select('status, current_question_index, question_started_at')
+        .eq('subject', subject)
+        .single(),
+      supabase
+        .from('questions')
+        .select('id, correct_option, points, negative_points')
+        .eq('id', questionId)
+        .single(),
+      supabase
+        .from('members')
+        .select('name, registrations(school_name)')
+        .eq('id', memberId)
+        .single(),
+    ])
+
+    const state = stateResult.data
+    const question = questionResult.data
+    const memberRow = memberResult.data
 
     if (!state || state.status !== 'active') {
       return NextResponse.json({ error: 'Quiz is not active' }, { status: 403 })
     }
 
-    // Grace period: accept answers that arrived up to 3s after the question changed
-    // This protects slow-connection users who tapped before the question advanced
+    // Grace period: accept answers that arrived up to 1s before question started
     if (clientAnsweredAt && state.question_started_at) {
       const tapTime = new Date(clientAnsweredAt).getTime()
       const questionStart = new Date(state.question_started_at).getTime()
       if (tapTime < questionStart - 1000) {
-        // User tapped more than 1 second before this question started — old answer, reject
         return NextResponse.json({ error: 'Answer submitted for a previous question' }, { status: 409 })
       }
     }
-
-    // Get the correct answer for scoring
-    const { data: question } = await supabase
-      .from('questions')
-      .select('id, correct_option, points, negative_points')
-      .eq('id', questionId)
-      .single()
 
     if (!question) {
       return NextResponse.json({ error: 'Question not found' }, { status: 404 })
@@ -196,13 +203,6 @@ export async function POST(req: NextRequest) {
 
     const isCorrect = selectedOption === question.correct_option
     const pointsEarned = isCorrect ? question.points : 0
-
-    // Fetch the school/member info we need for notifications
-    const { data: memberRow } = await supabase
-      .from('members')
-      .select('name, registrations(school_name)')
-      .eq('id', memberId)
-      .single()
 
     const memberName: string = (memberRow as any)?.name ?? '—'
     const schoolName: string = (memberRow as any)?.registrations?.school_name ?? '—'
@@ -218,6 +218,15 @@ export async function POST(req: NextRequest) {
     let updatedAnswers: Array<{ isCorrect: boolean }> = []
     let updatedScore = pointsEarned
     let activeSessionId = existingSession?.id
+
+    // Compute response time in seconds (from question start to client tap)
+    let responseTimeSec: number | null = null
+    if (clientAnsweredAt && state.question_started_at) {
+      responseTimeSec = parseFloat(
+        ((new Date(clientAnsweredAt).getTime() - new Date(state.question_started_at).getTime()) / 1000).toFixed(2)
+      )
+      if (responseTimeSec < 0) responseTimeSec = null
+    }
 
     if (existingSession) {
       // Check if already answered this question
@@ -235,6 +244,8 @@ export async function POST(req: NextRequest) {
         isCorrect,
         pointsEarned,
         answeredAt: new Date().toISOString(),
+        clientAnsweredAt: clientAnsweredAt ?? null,
+        responseTimeSec,
       }
       const newAnswers = [...answers, newAnswer]
       updatedScore = existingSession.total_score + pointsEarned
@@ -255,6 +266,8 @@ export async function POST(req: NextRequest) {
         isCorrect,
         pointsEarned,
         answeredAt: new Date().toISOString(),
+        clientAnsweredAt: clientAnsweredAt ?? null,
+        responseTimeSec,
       }
       const { data: insertedSession } = await supabase.from('quiz_sessions').insert({
         member_id: memberId,

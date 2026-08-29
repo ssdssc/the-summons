@@ -15,6 +15,7 @@ interface SessionData {
   totalScore: number
   answeredCount: number
   lastAnsweredAt: string | null
+  cheatFlags: number
 }
 
 interface QuestionStat {
@@ -70,6 +71,7 @@ export default function LiveAnalytics({ subject, token }: Props) {
     const built: SessionData[] = (data.sessions ?? []).map((s: any) => {
       const answers = (s.answers ?? []) as any[]
       const lastAns = answers.length > 0 ? answers[answers.length - 1]?.answeredAt : null
+      const flags = Array.isArray(s.cheat_flags) ? s.cheat_flags.length : 0
       return {
         memberId: s.member_id,
         memberName: s.members?.name ?? '—',
@@ -77,6 +79,7 @@ export default function LiveAnalytics({ subject, token }: Props) {
         totalScore: s.total_score ?? 0,
         answeredCount: answers.length,
         lastAnsweredAt: lastAns,
+        cheatFlags: flags,
       }
     })
     setSessions(built)
@@ -194,6 +197,11 @@ export default function LiveAnalytics({ subject, token }: Props) {
                       <span className={styles.scoreNum}>{s.totalScore}</span>
                       <span className={styles.scoreAns}>{s.answeredCount} ans</span>
                     </div>
+                    {s.cheatFlags > 0 && (
+                      <div className={styles.flagBadge} title={`${s.cheatFlags} violation(s) logged`}>
+                        ⚠ {s.cheatFlags}
+                      </div>
+                    )}
                   </div>
                 )
               })}
