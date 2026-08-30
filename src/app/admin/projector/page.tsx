@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase, SUBJECT_CONFIG, type Subject } from '@/lib/supabase'
-import { SubjectIcon } from './components/SubjectIcon'
+import { SubjectIcon } from '../components/SubjectIcon'
 import { School } from 'lucide-react'
 import styles from './page.module.css'
 import type { NotifyPayload } from '@/lib/notify-emitter'
