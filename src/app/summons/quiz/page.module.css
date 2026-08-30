@@ -378,6 +378,7 @@
 .tabWarning {
   position: fixed;
   top: 24px; right: 24px;
+  bottom: auto;
   z-index: 9999;
 }
 

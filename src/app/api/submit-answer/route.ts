@@ -228,13 +228,11 @@ export async function POST(req: NextRequest) {
       if (responseTimeSec < 0) responseTimeSec = null
     }
 
+    let isReAnswer = false
+
     if (existingSession) {
-      // Check if already answered this question
       const answers = existingSession.answers as any[]
-      const alreadyAnswered = answers.find((a: any) => a.questionId === questionId)
-      if (alreadyAnswered) {
-        return NextResponse.json({ error: 'Already answered' }, { status: 409 })
-      }
+      const alreadyAnsweredIndex = answers.findIndex((a: any) => a.questionId === questionId)
 
       const newAnswer = {
         questionId,
@@ -247,12 +245,29 @@ export async function POST(req: NextRequest) {
         clientAnsweredAt: clientAnsweredAt ?? null,
         responseTimeSec,
       }
-      const newAnswers = [...answers, newAnswer]
-      updatedScore = existingSession.total_score + pointsEarned
+
+      let newAnswers = [...answers]
+      
+      if (alreadyAnsweredIndex >= 0) {
+        // It's a re-answer! Remove old points, add new points
+        isReAnswer = true
+        const oldAnswer = answers[alreadyAnsweredIndex]
+        updatedScore = existingSession.total_score - oldAnswer.pointsEarned + pointsEarned
+        
+        // Retain original tap time and response time if this was a fast change
+        newAnswer.clientAnsweredAt = oldAnswer.clientAnsweredAt
+        newAnswer.responseTimeSec = oldAnswer.responseTimeSec
+        
+        newAnswers[alreadyAnsweredIndex] = newAnswer
+      } else {
+        // First time answering this question
+        newAnswers.push(newAnswer)
+        updatedScore = existingSession.total_score + pointsEarned
+      }
 
       await supabase
         .from('quiz_sessions')
-        .update({ answers: newAnswers, total_score: updatedScore })
+        .update({ answers: newAnswers, total_score: Math.max(0, updatedScore) })
         .eq('id', existingSession.id)
 
       updatedAnswers = newAnswers
@@ -282,22 +297,25 @@ export async function POST(req: NextRequest) {
       updatedAnswers = [newAnswer]
     }
 
-    // Fire-and-forget streak/comeback/loss detection
-    analyseAndNotify(supabase, updatedAnswers, schoolName, memberName, subject)
+    // Only fire notifications if this is their first attempt at the question
+    if (!isReAnswer) {
+      // Fire-and-forget streak/comeback/loss detection
+      analyseAndNotify(supabase, updatedAnswers, schoolName, memberName, subject)
 
-    // Check additional live events (overtake, lightning fast answer)
-    checkSpecialEventsAndNotify(
-      supabase,
-      quizId,
-      subject,
-      isCorrect,
-      updatedScore,
-      activeSessionId,
-      schoolName,
-      memberName,
-      state,
-      clientAnsweredAt
-    )
+      // Check additional live events (overtake, lightning fast answer)
+      checkSpecialEventsAndNotify(
+        supabase,
+        quizId,
+        subject,
+        isCorrect,
+        updatedScore,
+        activeSessionId,
+        schoolName,
+        memberName,
+        state,
+        clientAnsweredAt
+      )
+    }
 
     return NextResponse.json({ isCorrect, pointsEarned, correctOption: question.correct_option })
   } catch (err) {

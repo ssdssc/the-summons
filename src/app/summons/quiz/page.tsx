@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, SUBJECT_CONFIG, type Subject } from '@/lib/supabase'
 import { SubjectIcon } from '@/app/admin/components/SubjectIcon'
-import { CheckCircle, AlertTriangle, Maximize2, Timer } from 'lucide-react'
+import { CheckCircle, AlertTriangle, Maximize2, Timer, Key } from 'lucide-react'
 import styles from './page.module.css'
+import entryStyles from '../page.module.css'
 
 interface Question {
   id: string
@@ -65,7 +66,6 @@ export default function QuizPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Anti-cheat state
   const [showTabWarning, setShowTabWarning] = useState(false)
-  const [showFullscreenModal, setShowFullscreenModal] = useState(false)
   const [showKickedModal, setShowKickedModal] = useState(false)
   const [warningMsg, setWarningMsg] = useState('')
 
@@ -151,7 +151,7 @@ export default function QuizPage() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (!questionStartedAt || !questions[currentIndex]) { setTimeLeft(null); return }
 
-    const timeLimitSec = questions[currentIndex].time_seconds ?? 30
+    const timeLimitSec = questions[currentIndex].time_seconds ?? 120
 
     const tick = () => {
       const elapsed = (Date.now() - new Date(questionStartedAt).getTime()) / 1000
@@ -181,7 +181,7 @@ export default function QuizPage() {
     const handleVisibility = () => {
       if (document.hidden && !wasHiddenRef.current) {
         wasHiddenRef.current = true
-        setWarningMsg('⚠ Tab switch detected — this has been logged.')
+        setWarningMsg('Tab switch detected — this has been logged.')
         setShowTabWarning(true)
         setTimeout(() => setShowTabWarning(false), 4000)
         logViolation('tab_switch')
@@ -194,7 +194,7 @@ export default function QuizPage() {
   // ── Anti-cheat: window blur ───────────────────────────────────────────────
   useEffect(() => {
     const handleBlur = () => {
-      setWarningMsg('⚠ App focus lost — this has been logged.')
+      setWarningMsg('App focus lost — this has been logged.')
       setShowTabWarning(true)
       setTimeout(() => setShowTabWarning(false), 4000)
       logViolation('window_blur')
@@ -232,17 +232,16 @@ export default function QuizPage() {
   useEffect(() => {
     document.documentElement.requestFullscreen?.().catch(() => {})
     const handleFsChange = () => {
-      if (!document.fullscreenElement) { setShowFullscreenModal(true); logViolation('fullscreen_exit') }
-      else setShowFullscreenModal(false)
+      if (!document.fullscreenElement) {
+        setWarningMsg('Fullscreen exited — this has been logged.')
+        setShowTabWarning(true)
+        setTimeout(() => setShowTabWarning(false), 4000)
+        logViolation('fullscreen_exit')
+      }
     }
     document.addEventListener('fullscreenchange', handleFsChange)
     return () => document.removeEventListener('fullscreenchange', handleFsChange)
   }, [logViolation])
-
-  const reEnterFullscreen = () => {
-    document.documentElement.requestFullscreen?.().catch(() => {})
-    setShowFullscreenModal(false)
-  }
 
   // ── Anti-cheat: dual-device heartbeat ────────────────────────────────────
   useEffect(() => {
@@ -263,7 +262,10 @@ export default function QuizPage() {
   const handleAnswer = useCallback(async (option: string) => {
     if (!member || !quiz) return
     const q = questions[currentIndex]
-    if (!q || answers[q.id] || pendingOption) return // already answered or pending
+    // Block if: no question, already submitting, timer expired, or same option re-clicked
+    if (!q || pendingOption) return
+    if (timeLeft !== null && timeLeft <= 0) return   // timer expired — lock
+    if (answers[q.id]?.selected === option) return   // same option clicked again
 
     const clientAnsweredAt = new Date().toISOString()
 
@@ -286,21 +288,27 @@ export default function QuizPage() {
     } catch (err) { console.error('Failed to submit answer:', err) }
     setPendingOption(null)
     setSubmitting(false)
-  }, [member, quiz, questions, currentIndex, answers, pendingOption])
+  }, [member, quiz, questions, currentIndex, answers, pendingOption, timeLeft])
 
   const currentQuestion = questions[currentIndex]
   const subjectCfg = member ? SUBJECT_CONFIG[member.subject as Subject] : null
   const answered = currentQuestion ? answers[currentQuestion.id] : null
   const progressPct = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0
-  const timeLimitSec = currentQuestion?.time_seconds ?? 30
+  const timeLimitSec = currentQuestion?.time_seconds ?? 120
   const timerPct = timeLeft !== null ? Math.max(0, (timeLeft / timeLimitSec) * 100) : 100
   const timerDanger = timeLeft !== null && timeLeft <= 5
   const timerWarn = timeLeft !== null && timeLeft <= 10
 
+  const timerExpired = timeLeft !== null && timeLeft <= 0
+
   const getOptionClass = (opt: string) => {
-    if (pendingOption === opt && !answered) return 'option-btn pending'
-    if (!answered) return 'option-btn'
-    if (opt === answered.selected) return 'option-btn selected'
+    // If this option is currently being submitted, it's pending
+    if (pendingOption === opt) return 'option-btn pending'
+    
+    // If not pending, check if it's the currently selected answer
+    if (answered?.selected === opt) return 'option-btn selected'
+    
+    // Default state
     return 'option-btn'
   }
 
@@ -319,6 +327,56 @@ export default function QuizPage() {
     )
   }
 
+  // ── Quiz ended ────────────────────────────────────────────────────────────
+  if (quizStatus === 'ended' || quizStatus === 'results_published') {
+    if (quizStatus === 'results_published') return null; // redirecting
+
+    return (
+      <main className={entryStyles.main}>
+        <div className="bg-grid" /><div className="bg-radial" />
+        {/* Floating particles */}
+        <div className={entryStyles.particles}>
+          {/* Simple hardcoded static particles so we don't need the whole state logic here */}
+          <div className={entryStyles.particle} style={{ top: '20%', left: '10%', width: '3px', height: '3px', animationDelay: '0s' }} />
+          <div className={entryStyles.particle} style={{ top: '60%', left: '80%', width: '4px', height: '4px', animationDelay: '1s' }} />
+          <div className={entryStyles.particle} style={{ top: '80%', left: '20%', width: '2px', height: '2px', animationDelay: '2s' }} />
+        </div>
+
+        <div className={entryStyles.content}>
+          <div className={`${entryStyles.entryCard} anim-scale-in`}>
+            {/* Branding */}
+            <div className={`${entryStyles.branding} anim-fade-up delay-1`} style={{ '--subject-glow': subjectCfg?.glow } as any}>
+              <div className={entryStyles.eventBadge}>
+                <span className={entryStyles.phaseDot} />
+                {subjectCfg?.label || member?.subject}
+              </div>
+              <h1 className={entryStyles.title} style={{ fontSize: 'clamp(28px, 5vw, 40px)', lineHeight: 1.1 }}>
+                {member?.name}
+              </h1>
+              <p className={entryStyles.subtitle}>{school?.name}</p>
+              <p className={entryStyles.tagline} style={{ marginTop: 8, fontFamily: 'var(--font-mono)', letterSpacing: '0.15em', fontWeight: 700, fontSize: '24px', color: 'var(--accent-2)' }}>
+                {member?.accessCode}
+              </p>
+            </div>
+
+            {/* Quiz Status */}
+            <div className={`${entryStyles.quizStatus} anim-fade-up delay-3`} style={{ marginTop: 16 }}>
+              <div className={styles.waitingOrbit} style={{ margin: '0 auto 16px' }}><div className={styles.orbitDot} /><div className={styles.orbitDot2} /></div>
+              <h2 className={styles.waitingTitle} style={{ textAlign: 'center' }}>Quiz Complete</h2>
+              <p className={styles.waitingDesc} style={{ textAlign: 'center', marginBottom: 24 }}>
+                Your answers have been recorded.<br />Waiting for results to be published...
+              </p>
+              
+              <div className={styles.finalScore}>
+                <span className={styles.finalScoreLabel}>Session Ended</span>
+                <span className={styles.finalScoreNum}>🏁</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
   // ── Quiz ended redirect ───────────────────────────────────────────────────
   useEffect(() => {
     if (quizStatus === 'results_published') {
@@ -376,17 +434,6 @@ export default function QuizPage() {
         </div>
       )}
 
-      {/* Fullscreen exit modal */}
-      {showFullscreenModal && (
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalCard} anim-scale-in`}>
-            <div className={styles.modalIcon}><Maximize2 size={32} /></div>
-            <h3 className={styles.modalTitle}>Return to Fullscreen</h3>
-            <p className={styles.modalDesc}>You exited fullscreen mode. This has been logged.<br />Please return to fullscreen to continue the quiz.</p>
-            <button className="btn btn-primary" onClick={reEnterFullscreen} style={{ minWidth: 200 }}>Re-enter Fullscreen</button>
-          </div>
-        </div>
-      )}
 
       <div className={styles.quizWrap}>
         {/* Top bar */}
@@ -406,15 +453,15 @@ export default function QuizPage() {
           <div className="progress-fill" style={{ width: `${progressPct}%` }} />
         </div>
 
-        {/* Per-question timer */}
-        {timeLeft !== null && !answered && (
+        {/* Per-question timer — always visible while question is active */}
+        {timeLeft !== null && (
           <div className={styles.timerWrap}>
             <div className={styles.timerRow}>
-              <span className={styles.timerLabel} style={{ color: timerDanger ? 'var(--red)' : timerWarn ? '#f59e0b' : 'var(--text-3)' }}>
+              <span className={styles.timerLabel} style={{ color: answered ? 'var(--green)' : timerDanger ? 'var(--red)' : timerWarn ? '#f59e0b' : 'var(--text-3)' }}>
                 <Timer size={12} style={{ display: 'inline', marginRight: 4 }} />
-                {timerDanger ? 'Time almost up!' : 'Time remaining'}
+                {answered ? '✓ Answer submitted' : timerDanger ? 'Time almost up!' : 'Time remaining'}
               </span>
-              <span className={styles.timerNum} style={{ color: timerDanger ? 'var(--red)' : timerWarn ? '#f59e0b' : 'var(--text)' }}>
+              <span className={styles.timerNum} style={{ color: answered ? 'var(--green)' : timerDanger ? 'var(--red)' : timerWarn ? '#f59e0b' : 'var(--text)' }}>
                 {timeLeft}s
               </span>
             </div>
@@ -423,7 +470,7 @@ export default function QuizPage() {
                 className={styles.timerFill}
                 style={{
                   width: `${timerPct}%`,
-                  background: timerDanger ? '#ef4444' : timerWarn ? '#f59e0b' : 'var(--accent)',
+                  background: answered ? 'var(--green)' : timerDanger ? '#ef4444' : timerWarn ? '#f59e0b' : 'var(--accent)',
                   transition: 'width 0.25s linear, background 0.4s',
                 }}
               />
@@ -452,22 +499,30 @@ export default function QuizPage() {
                 key={opt.key}
                 className={getOptionClass(opt.key)}
                 onClick={() => handleAnswer(opt.key)}
-                disabled={!!answered || !!pendingOption}
+                disabled={!!pendingOption || timerExpired}
               >
                 <span className="option-letter">{opt.key}</span>
                 <span className={`${styles.optionText} ${isSi && currentQuestion[`option_${opt.key.toLowerCase()}_si` as keyof Question] ? 'lang-si' : ''}`}>{opt.text}</span>
               </button>
             ))}
           </div>
-          {answered && (
+          {answered && !timerExpired && (
             <div className={`${styles.feedback} anim-fade-up`} style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-              ✓ Answer submitted.
+              ✓ Answer recorded — tap another option to change it.
             </div>
           )}
-          {!answered && !pendingOption && (
+          {answered && timerExpired && (
+            <div className={`${styles.feedback} anim-fade-up`} style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--green)' }}>
+              ✓ Answer locked in.
+            </div>
+          )}
+          {!answered && !pendingOption && !timerExpired && (
             <p className={styles.waitNote}>Waiting for next question from admin — answer when ready.</p>
           )}
-          {pendingOption && !answered && (
+          {!answered && timerExpired && (
+            <p className={styles.waitNote} style={{ color: 'var(--red)' }}>Time&apos;s up — no answer submitted.</p>
+          )}
+          {pendingOption && (
             <p className={styles.waitNote} style={{ color: 'var(--accent-2)' }}>Submitting your answer...</p>
           )}
         </div>
@@ -475,7 +530,6 @@ export default function QuizPage() {
         {/* Member info footer */}
         <div className={`${styles.memberFooter} anim-fade-in delay-2`}>
           <span>{member?.name}</span>
-          <span className="text-faint">·</span>
           <span className="text-faint">{school?.name}</span>
         </div>
       </div>

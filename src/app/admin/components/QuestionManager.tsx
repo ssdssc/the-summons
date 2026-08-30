@@ -41,7 +41,7 @@ interface Question {
 
 const EMPTY_Q = {
   question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', option_e: '',
-  correct_option: 'A', points: 4, negative_points: 1, image_url: '', time_seconds: 30,
+  correct_option: 'A', points: 4, negative_points: 1, image_url: '', time_seconds: 120,
   question_text_si: '', option_a_si: '', option_b_si: '', option_c_si: '', option_d_si: '', option_e_si: '',
 }
 
@@ -266,7 +266,7 @@ export default function QuestionManager({ subject, token }: Props) {
       question_text: q.question_text,
       option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, option_e: q.option_e ?? '',
       correct_option: q.correct_option, points: q.points, negative_points: q.negative_points, image_url: q.image_url ?? '',
-      time_seconds: q.time_seconds ?? 30,
+      time_seconds: q.time_seconds ?? 120,
       question_text_si: q.question_text_si ?? '',
       option_a_si: q.option_a_si ?? '', option_b_si: q.option_b_si ?? '',
       option_c_si: q.option_c_si ?? '', option_d_si: q.option_d_si ?? '', option_e_si: q.option_e_si ?? '',

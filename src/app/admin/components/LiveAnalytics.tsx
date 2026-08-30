@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase, SUBJECT_CONFIG, type Subject } from '@/lib/supabase'
 import { SubjectIcon } from './SubjectIcon'
-import { Medal } from 'lucide-react'
+import { Medal, X } from 'lucide-react'
 import styles from './LiveAnalytics.module.css'
 
 interface Props { subject: Subject; token: string }
@@ -16,6 +16,7 @@ interface SessionData {
   answeredCount: number
   lastAnsweredAt: string | null
   cheatFlags: number
+  cheatFlagDetails: { type: string; at: string }[]
 }
 
 interface QuestionStat {
@@ -33,6 +34,7 @@ export default function LiveAnalytics({ subject, token }: Props) {
   const [currentQIndex, setCurrentQIndex] = useState(-1)
   const [totalParticipants, setTotalParticipants] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [violationModal, setViolationModal] = useState<SessionData | null>(null)
   const pollRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const cfg = SUBJECT_CONFIG[subject]
 
@@ -71,7 +73,7 @@ export default function LiveAnalytics({ subject, token }: Props) {
     const built: SessionData[] = (data.sessions ?? []).map((s: any) => {
       const answers = (s.answers ?? []) as any[]
       const lastAns = answers.length > 0 ? answers[answers.length - 1]?.answeredAt : null
-      const flags = Array.isArray(s.cheat_flags) ? s.cheat_flags.length : 0
+      const flagDetails: { type: string; at: string }[] = Array.isArray(s.cheat_flags) ? s.cheat_flags : []
       return {
         memberId: s.member_id,
         memberName: s.members?.name ?? '—',
@@ -79,7 +81,8 @@ export default function LiveAnalytics({ subject, token }: Props) {
         totalScore: s.total_score ?? 0,
         answeredCount: answers.length,
         lastAnsweredAt: lastAns,
-        cheatFlags: flags,
+        cheatFlags: flagDetails.length,
+        cheatFlagDetails: flagDetails,
       }
     })
     setSessions(built)
@@ -198,9 +201,13 @@ export default function LiveAnalytics({ subject, token }: Props) {
                       <span className={styles.scoreAns}>{s.answeredCount} ans</span>
                     </div>
                     {s.cheatFlags > 0 && (
-                      <div className={styles.flagBadge} title={`${s.cheatFlags} violation(s) logged`}>
+                      <button
+                        className={styles.flagBadge}
+                        title={`${s.cheatFlags} violation(s) — click to view`}
+                        onClick={() => setViolationModal(s)}
+                      >
                         ⚠ {s.cheatFlags}
-                      </div>
+                      </button>
                     )}
                   </div>
                 )
@@ -208,6 +215,41 @@ export default function LiveAnalytics({ subject, token }: Props) {
           </div>
         )}
       </div>
+
+      {/* ── Violation detail modal ── */}
+      {violationModal && (
+        <div className={styles.violationOverlay} onClick={() => setViolationModal(null)}>
+          <div className={styles.violationModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.violationHeader}>
+              <div>
+                <div className={styles.violationTitle}>⚠ Violations — {violationModal.schoolName}</div>
+                <div className={styles.violationSub}>{violationModal.memberName} · {violationModal.cheatFlags} logged</div>
+              </div>
+              <button className={styles.violationClose} onClick={() => setViolationModal(null)}><X size={14} /></button>
+            </div>
+            <div className={styles.violationList}>
+              {violationModal.cheatFlagDetails.length === 0 ? (
+                <p className={styles.empty}>No violation details available.</p>
+              ) : (
+                violationModal.cheatFlagDetails.map((flag, i) => (
+                  <div key={i} className={styles.violationRow}>
+                    <span className={styles.violationBadge}>
+                      {flag.type === 'tab_switch'    ? '🔀 Tab Switch' :
+                       flag.type === 'window_blur'   ? '👁 Window Blur' :
+                       flag.type === 'fullscreen_exit' ? '⛶ Fullscreen Exit' :
+                       flag.type === 'devtools_key'  ? '🛠 DevTools Key' :
+                       flag.type}
+                    </span>
+                    <span className={styles.violationTime}>
+                      {new Date(flag.at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Live leaderboard ── */}
       {sessions.length > 0 && (

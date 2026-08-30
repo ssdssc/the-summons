@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       correct_option: q.correct_option,
       points: q.points ?? 4,
       negative_points: q.negative_points ?? 1,
-      time_seconds: q.time_seconds ?? 30,
+      time_seconds: q.time_seconds ?? 120,
       image_url: q.image_url ?? null,
       // Sinhala translations
       question_text_si: q.question_text_si ?? null,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       correct_option: body.correct_option,
       points: body.points ?? 4,
       negative_points: body.negative_points ?? 1,
-      time_seconds: body.time_seconds ?? 30,
+      time_seconds: body.time_seconds ?? 120,
       image_url: body.image_url ?? null,
       // Sinhala translations
       question_text_si: body.question_text_si ?? null,
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     correct_option: body.correct_option,
     points: body.points ?? 4,
     negative_points: body.negative_points ?? 1,
-    time_seconds: body.time_seconds ?? 30,
+    time_seconds: body.time_seconds ?? 120,
     image_url: body.image_url ?? null,
     // Sinhala translations
     question_text_si: body.question_text_si ?? null,

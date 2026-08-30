@@ -241,7 +241,7 @@ export default function SummonsPage() {
                 {loading ? (
                   <span className={styles.spinner} />
                 ) : (
-                  <>Answer the Summons <span className={styles.arrow}>→</span></>
+                  <>Verify Access</>
                 )}
               </button>
             </form>
@@ -252,58 +252,42 @@ export default function SummonsPage() {
           </div>
         ) : (
           /* ── Member Card ── */
-          <div className={`${styles.memberCard} anim-scale-in`}>
-            {/* Subject header */}
-            <div className={styles.subjectHeader} style={{ '--subject-glow': subjectCfg?.glow } as any}>
-              <div className={styles.subjectHeaderInner}>
-                <div className={styles.subjectIconWrap}>
-                  {data.member.subject && <SubjectIcon subject={data.member.subject} size={22} />}
-                </div>
-                <div className={styles.subjectMeta}>
-                  <div className={styles.subjectLabel}>{subjectCfg?.label}</div>
-                  <div className={styles.subjectCode}>{data.member.accessCode}</div>
-                </div>
-                {data.member.isCaptain && (
-                  <div className={styles.captainBadge}><Zap size={11} /> Captain</div>
-                )}
+          <div className={`${styles.entryCard} anim-scale-in`}>
+            {/* Branding */}
+            <div className={`${styles.branding} anim-fade-up delay-1`} style={{ '--subject-glow': subjectCfg?.glow } as any}>
+              <div className={styles.eventBadge}>
+                <span className={styles.phaseDot} />
+                {subjectCfg?.label || data.member.subject}
               </div>
-            </div>
-
-            {/* Member info */}
-            <div className={styles.memberInfo}>
-              <div className={`${styles.memberAvatar} ${data.school.logoUrl ? styles.memberAvatarLogo : ''}`}>
-                {data.school.logoUrl
-                  ? <img src={data.school.logoUrl} alt={data.school.name} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 'inherit' }} />
-                  : data.member.name.charAt(0).toUpperCase()
-                }
-              </div>
-              <div className={styles.memberDetails}>
-                <div className={styles.memberName}>{data.member.name}</div>
-                <div className={styles.schoolName}>{data.school.name}</div>
-              </div>
+              <h1 className={styles.title} style={{ fontSize: 'clamp(28px, 5vw, 40px)', lineHeight: 1.1 }}>
+                {data.member.name}
+              </h1>
+              <p className={styles.subtitle}>{data.school.name}</p>
+              <p className={styles.tagline} style={{ marginTop: 8, fontFamily: 'var(--font-mono)', letterSpacing: '0.15em', fontWeight: 700, fontSize: '24px', color: 'var(--accent-2)' }}>
+                {data.member.accessCode}
+              </p>
             </div>
 
             {/* ── Language Picker ── */}
             {!langPicked ? (
-              <div className={`${styles.langPicker} anim-fade-up`}>
-                <p className={styles.langPickerTitle}>Select your preferred language</p>
-                <p className={styles.langPickerSub}>ඔබේ භාෂාව තෝරන්න</p>
-                <div className={styles.langBtnRow}>
+              <div className={`${styles.form} anim-fade-up delay-3`} style={{ marginTop: '-12px' }}>
+                <p className={styles.hint} style={{ marginBottom: 4 }}>
+                  Select your preferred language<br />ඔබේ භාෂාව තෝරන්න
+                </p>
+                <div style={{ display: 'flex', gap: '14px' }}>
                   <button
                     id="lang-english"
-                    className={styles.langBtn}
+                    className={`btn btn-primary ${styles.submitBtn}`}
                     onClick={() => handleLangConfirm('en')}
                   >
-                    <span className={styles.langFlag}>🇬🇧</span>
-                    <span className={styles.langName}>English</span>
+                    English
                   </button>
                   <button
                     id="lang-sinhala"
-                    className={styles.langBtn}
+                    className={`btn btn-primary ${styles.submitBtn}`}
                     onClick={() => handleLangConfirm('si')}
                   >
-                    <span className={styles.langFlag}>🇱🇰</span>
-                    <span className={styles.langName}>සිංහල</span>
+                    සිංහල
                   </button>
                 </div>
               </div>
@@ -372,9 +356,12 @@ export default function SummonsPage() {
                       <span className="status-dot live" />
                       <span className={styles.liveText}>QUIZ IS LIVE</span>
                     </div>
-                    <button onClick={handleEnterQuiz} className={`btn btn-primary ${styles.enterBtn}`}>
-                      Enter The Summons →
-                    </button>
+                    <div className={styles.waitMsg} style={{ marginTop: '14px' }}>
+                      <div className={styles.waitDots}>
+                        <span /><span /><span />
+                      </div>
+                      Entering the arena...
+                    </div>
                   </div>
                 )}
 
@@ -420,9 +407,10 @@ export default function SummonsPage() {
             {/* Back */}
             <button
               onClick={() => { setData(null); setCode(''); setError(''); setLangPicked(false); setSelectedLang('en') }}
-              className={`btn btn-ghost ${styles.backBtn}`}
+              className={`btn ${styles.submitBtn}`}
+              style={{ background: '#3f3f46', color: '#d4d4d8', borderColor: '#52525b', marginTop: '-18px' }}
             >
-              ← Different code
+              Change Access Code
             </button>
           </div>
         )}

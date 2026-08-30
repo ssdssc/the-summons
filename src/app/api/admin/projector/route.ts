@@ -8,13 +8,20 @@ function checkAdminAuth(req: NextRequest): boolean {
 
 const SUBJECTS: Subject[] = ['biology', 'chemistry', 'physics', 'maths']
 
+// In-memory fallback for projector subject config.
+// NOTE: quiz_state has a CHECK constraint that only allows valid subject names,
+// so we cannot store 'projector_config' there. We use this module-level variable
+// as the source of truth, and broadcast changes via Supabase Realtime so the
+// projector page reacts immediately.
+let projectorSubjectOverride: string = 'auto'
+
 export async function GET(req: NextRequest) {
   if (!checkAdminAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const supabase = createAdminClient()
   const results: Record<string, any[]> = {}
 
-  // Fetch top 20 for each subject in parallel
+  // Fetch top 6 for each subject in parallel
   await Promise.all(
     SUBJECTS.map(async (subject) => {
       const { data } = await supabase
@@ -55,27 +62,18 @@ export async function GET(req: NextRequest) {
           .eq('quiz_id', q.id)
 
         const count = qs?.length || 0
-        maxScores[q.subject] = count
+        // Sum each question's individual points for the true max possible score
+        const totalPoints = qs?.reduce((sum, row) => sum + (row.points ?? 0), 0) ?? 0
+        maxScores[q.subject] = totalPoints
         questionCounts[q.subject] = count
       })
     )
   }
 
-  // Determine active subject: if set to 'auto', check if any quiz is currently active
-  let currentActiveSubject = 'auto'
-  
-  // 1. Fetch saved config from DB
-  const { data: configRow } = await supabase
-    .from('quiz_state')
-    .select('status')
-    .eq('subject', 'projector_config')
-    .maybeSingle()
-    
-  if (configRow?.status) {
-    currentActiveSubject = configRow.status
-  }
+  // Determine active subject using our in-memory override
+  let currentActiveSubject = projectorSubjectOverride
 
-  // 2. If 'auto', find an active quiz
+  // If 'auto', find an active quiz to display
   if (currentActiveSubject === 'auto') {
     const { data: activeState } = await supabase
       .from('quiz_state')
@@ -83,7 +81,7 @@ export async function GET(req: NextRequest) {
       .eq('status', 'active')
       .limit(1)
       .maybeSingle()
-    if (activeState?.subject && activeState.subject !== 'projector_config') {
+    if (activeState?.subject) {
       currentActiveSubject = activeState.subject
     }
   }
@@ -99,15 +97,22 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!checkAdminAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { subject } = await req.json()
-  
+
   const targetSubject = subject || 'auto'
-  
-  const supabase = createAdminClient()
-  await supabase.from('quiz_state').upsert({
-    subject: 'projector_config',
-    status: targetSubject,
-    current_question_index: -1,
-  })
-  
+
+  // Persist in module-level variable (works within a single server instance)
+  projectorSubjectOverride = targetSubject
+
+  // Broadcast the change via Supabase Realtime so the projector page reacts instantly
+  // without waiting for the next 2-second poll.
+  try {
+    const supabase = createAdminClient()
+    await supabase.channel('projector-live-notifications').send({
+      type: 'broadcast',
+      event: 'subject_change',
+      payload: { activeSubject: targetSubject },
+    })
+  } catch { /* non-fatal — projector will pick it up on the next poll */ }
+
   return NextResponse.json({ ok: true, activeSubject: targetSubject })
 }

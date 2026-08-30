@@ -110,14 +110,22 @@ export async function POST(req: NextRequest) {
         .eq('subject', subject)
         .order('total_score', { ascending: false })
 
-      if (sessions) {
+      if (sessions && sessions.length > 0) {
+        const completedAt = new Date().toISOString()
+        // Standard competition ranking (1-2-2-4): tied scores share the same rank,
+        // and the next rank is skipped by the number of tied players.
         let rank = 1
-        for (const session of sessions) {
+        for (let i = 0; i < sessions.length; i++) {
+          // If this player has the same score as the previous, reuse that rank
+          if (i > 0 && sessions[i].total_score === sessions[i - 1].total_score) {
+            // rank stays the same — will be updated below using the same value
+          } else {
+            rank = i + 1  // position-based rank (skips over tied positions)
+          }
           await supabase
             .from('quiz_sessions')
-            .update({ rank, completed_at: new Date().toISOString() })
-            .eq('id', session.id)
-          rank++
+            .update({ rank, completed_at: completedAt })
+            .eq('id', sessions[i].id)
         }
       }
 

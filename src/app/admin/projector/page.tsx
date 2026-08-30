@@ -199,6 +199,11 @@ export default function ProjectorPage() {
       .on('broadcast', { event: 'notification' }, (eventPayload: any) => {
         if (eventPayload?.payload) push(eventPayload.payload)
       })
+      .on('broadcast', { event: 'subject_change' }, (eventPayload: any) => {
+        // Admin changed the projector subject — apply instantly without waiting for poll
+        const newSubject = eventPayload?.payload?.activeSubject
+        if (newSubject) setForcedSubject(newSubject as Subject | 'auto')
+      })
       .subscribe()
 
     return () => {
@@ -245,16 +250,17 @@ export default function ProjectorPage() {
               </div>
 
               {(() => {
-                const count = questionCounts[sub] || maxScores[sub] || 0
+                // maxScores = sum of each question's points = true max possible score
+                const maxPossible = maxScores[sub] || 0
                 const highestInRoom = items.length > 0 ? Math.max(...items.map(i => i.score)) : 0
-                const maxScore = count > 0 ? count : Math.max(highestInRoom, 1)
+                const maxScore = maxPossible > 0 ? maxPossible : Math.max(highestInRoom, 1)
                 const ySteps = [1, 0.75, 0.5, 0.25, 0]
 
                 return (
                   <div className={styles.chartStage}>
                     {/* Y-Axis Ticks */}
                     <div className={styles.yAxisArea}>
-                      {count > 0 && ySteps.map((fraction) => {
+                      {maxPossible > 0 && ySteps.map((fraction) => {
                         const tickValue = Math.round(maxScore * fraction)
                         return (
                           <div key={fraction} className={styles.yAxisTick}>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase, SUBJECT_CONFIG, type Subject } from '@/lib/supabase'
 import { SubjectIcon } from './SubjectIcon'
-import { AlertTriangle, Play, Square, Trophy, CheckCircle, RotateCcw, Timer, Download } from 'lucide-react'
+import { AlertTriangle, Play, Square, Trophy, CheckCircle, RotateCcw, Timer, Download, FastForward } from 'lucide-react'
 import styles from './QuizController.module.css'
 
 interface Props {
@@ -54,7 +54,7 @@ export default function QuizController({ subject, token, onStateChange }: Props)
     const currentQ = questions[state.current_question_index]
     if (!currentQ || !state.question_started_at) return
 
-    const timeLimitMs = (currentQ.time_seconds ?? 30) * 1000
+    const timeLimitMs = (currentQ.time_seconds ?? 120) * 1000
     const startedAt = new Date(state.question_started_at).getTime()
 
     function tick() {
@@ -92,6 +92,7 @@ export default function QuizController({ subject, token, onStateChange }: Props)
       setMsg('error:' + json.error)
     } else {
       setMsg(action === 'start'          ? 'Quiz started!' :
+             action === 'next'           ? 'Advancing to next question...' :
              action === 'end'            ? 'Quiz ended.' :
              action === 'reset'          ? 'Quiz reset to waiting.' :
              'Results published!')
@@ -124,7 +125,7 @@ export default function QuizController({ subject, token, onStateChange }: Props)
   const isPublished = status === 'results_published'
 
   const currentQ = isActive && currentQIdx >= 0 ? questions[currentQIdx] : null
-  const timeLimitSec = currentQ?.time_seconds ?? 30
+  const timeLimitSec = currentQ?.time_seconds ?? 120
   const countdownPct = countdown !== null ? Math.max(0, (countdown / timeLimitSec) * 100) : 100
 
   return (
@@ -151,22 +152,20 @@ export default function QuizController({ subject, token, onStateChange }: Props)
 
       {/* Countdown timer — shown when active */}
       {isActive && countdown !== null && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: countdown <= 5 ? '#ef4444' : 'var(--text-2)' }}>
+        <div className={styles.progressWrap} style={{ marginBottom: 14 }}>
+          <div className={styles.progressRow}>
+            <span className={styles.progressLabel} style={{ display: 'flex', alignItems: 'center', gap: 6, color: countdown <= 5 ? 'var(--red)' : undefined }}>
               <Timer size={14} /> Auto-advancing in
             </span>
-            <span style={{ fontWeight: 700, fontSize: 22, color: countdown <= 5 ? '#ef4444' : 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+            <span className={styles.progressVal} style={{ color: countdown <= 5 ? 'var(--red)' : undefined }}>
               {countdown}s
             </span>
           </div>
-          <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
+          <div className="progress-track">
+            <div className="progress-fill" style={{
               width: `${countdownPct}%`,
-              background: countdown <= 5 ? '#ef4444' : 'var(--accent)',
-              transition: 'width 0.25s linear, background 0.3s',
-              borderRadius: 4,
+              background: countdown <= 5 ? 'var(--red)' : 'var(--accent)',
+              transition: 'width 0.25s linear, background 0.3s'
             }} />
           </div>
         </div>
@@ -181,9 +180,14 @@ export default function QuizController({ subject, token, onStateChange }: Props)
         )}
 
         {isActive && (
-          <button className={`btn btn-danger ${styles.bigBtn}`} onClick={() => doAction('end')} disabled={loading}>
-            {loading ? <span className={styles.spin} /> : <><Square size={16} className="inline-block mr-2" /> End Quiz</>}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button className={`btn btn-primary ${styles.bigBtn}`} onClick={() => doAction('next')} disabled={loading}>
+              {loading ? <span className={styles.spin} /> : <><FastForward size={16} className="inline-block mr-2" /> Next Question</>}
+            </button>
+            <button className={`btn btn-danger ${styles.bigBtn}`} onClick={() => doAction('end')} disabled={loading}>
+              {loading ? <span className={styles.spin} /> : <><Square size={16} className="inline-block mr-2" /> End Quiz</>}
+            </button>
+          </div>
         )}
 
         {isEnded && (
