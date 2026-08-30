@@ -6,6 +6,7 @@ import type { NotifyPayload } from '@/lib/notify-emitter'
 const COMEBACK_WRONG_THRESHOLD = 3
 // Minimum consecutive correct answers after the wrong run to fire a comeback
 const COMEBACK_CORRECT_THRESHOLD = 3
+const VALID_OPTIONS = new Set(['A', 'B', 'C', 'D', 'E'])
 
 function emitProjectorNotification(supabase: any, payload: NotifyPayload) {
   try {
@@ -33,6 +34,10 @@ function analyseAndNotify(
 
   // If latest answer is WRONG, emit streak_lost so projector can remove the card immediately
   if (!lastAnswer.isCorrect) {
+    let previousStreak = 0
+    for (let i = answers.length - 2; i >= 0 && answers[i].isCorrect; i--) previousStreak++
+    if (previousStreak < 3) return
+
     const payload: NotifyPayload = {
       type: 'streak_lost',
       schoolName,
@@ -153,13 +158,19 @@ async function checkSpecialEventsAndNotify(
 
 export async function POST(req: NextRequest) {
   try {
-    const { memberId, quizId, subject, questionId, selectedOption, questionIndex, clientAnsweredAt } = await req.json()
+    const { memberId, quizId, subject, questionId, selectedOption, questionIndex, clientAnsweredAt, sessionToken } = await req.json()
 
-    if (!memberId || !quizId || !subject || !questionId || !selectedOption) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (
+      !memberId || !quizId || !subject || !questionId || !sessionToken ||
+      !Number.isInteger(questionIndex) || questionIndex < 0 ||
+      typeof selectedOption !== 'string' || !VALID_OPTIONS.has(selectedOption)
+    ) {
+      return NextResponse.json({ error: 'Invalid answer submission' }, { status: 400 })
     }
 
     const supabase = createAdminClient()
+    const parsedClientTime = typeof clientAnsweredAt === 'string' ? Date.parse(clientAnsweredAt) : NaN
+    const safeClientAnsweredAt = Number.isFinite(parsedClientTime) ? clientAnsweredAt : undefined
 
     // ── Run independent queries in parallel for speed ──────────
     const [stateResult, questionResult, memberResult] = await Promise.all([
@@ -170,50 +181,67 @@ export async function POST(req: NextRequest) {
         .single(),
       supabase
         .from('questions')
-        .select('id, correct_option, points, negative_points')
+        .select('id, quiz_id, order_index, correct_option, points, negative_points, time_seconds')
         .eq('id', questionId)
-        .single(),
+        .eq('quiz_id', quizId)
+        .eq('order_index', questionIndex)
+        .maybeSingle(),
       supabase
         .from('members')
-        .select('name, registrations(school_name)')
+        .select('name, subject, session_token, registrations(school_name)')
         .eq('id', memberId)
-        .single(),
+        .maybeSingle(),
     ])
+
+    if (stateResult.error || questionResult.error || memberResult.error) {
+      console.error('submit-answer validation query failed')
+      return NextResponse.json({ error: 'Database temporarily unavailable' }, { status: 503 })
+    }
 
     const state = stateResult.data
     const question = questionResult.data
     const memberRow = memberResult.data
 
+    if (!memberRow || memberRow.session_token !== sessionToken) {
+      return NextResponse.json({ error: 'Session expired' }, { status: 401 })
+    }
+    if (memberRow.subject !== subject) {
+      return NextResponse.json({ error: 'Member is not assigned to this subject' }, { status: 403 })
+    }
     if (!state || state.status !== 'active') {
       return NextResponse.json({ error: 'Quiz is not active' }, { status: 403 })
     }
-
-    // Grace period: accept answers that arrived up to 1s before question started
-    if (clientAnsweredAt && state.question_started_at) {
-      const tapTime = new Date(clientAnsweredAt).getTime()
-      const questionStart = new Date(state.question_started_at).getTime()
-      if (tapTime < questionStart - 1000) {
-        return NextResponse.json({ error: 'Answer submitted for a previous question' }, { status: 409 })
-      }
+    if (state.current_question_index !== questionIndex) {
+      return NextResponse.json({ error: 'Answer submitted for a different question' }, { status: 409 })
     }
-
     if (!question) {
       return NextResponse.json({ error: 'Question not found' }, { status: 404 })
     }
 
+    const questionStart = state.question_started_at ? Date.parse(state.question_started_at) : NaN
+    const timeLimitSec = question.time_seconds ?? 120
+    if (!Number.isFinite(questionStart) || Date.now() > questionStart + (timeLimitSec * 1000) + 2000) {
+      return NextResponse.json({ error: 'Answer window has closed' }, { status: 409 })
+    }
+
     const isCorrect = selectedOption === question.correct_option
-    const pointsEarned = isCorrect ? question.points : 0
+    const pointsEarned = isCorrect ? (question.points ?? 0) : 0
 
     const memberName: string = (memberRow as any)?.name ?? '—'
     const schoolName: string = (memberRow as any)?.registrations?.school_name ?? '—'
 
     // Upsert the session and append this answer
-    const { data: existingSession } = await supabase
+    const { data: existingSession, error: sessionReadError } = await supabase
       .from('quiz_sessions')
       .select('id, answers, total_score')
       .eq('member_id', memberId)
       .eq('quiz_id', quizId)
-      .single()
+      .maybeSingle()
+
+    if (sessionReadError) {
+      console.error('submit-answer session read failed')
+      return NextResponse.json({ error: 'Could not load answer session' }, { status: 503 })
+    }
 
     let updatedAnswers: Array<{ isCorrect: boolean }> = []
     let updatedScore = pointsEarned
@@ -221,9 +249,9 @@ export async function POST(req: NextRequest) {
 
     // Compute response time in seconds (from question start to client tap)
     let responseTimeSec: number | null = null
-    if (clientAnsweredAt && state.question_started_at) {
+    if (safeClientAnsweredAt) {
       responseTimeSec = parseFloat(
-        ((new Date(clientAnsweredAt).getTime() - new Date(state.question_started_at).getTime()) / 1000).toFixed(2)
+        ((parsedClientTime - questionStart) / 1000).toFixed(2)
       )
       if (responseTimeSec < 0) responseTimeSec = null
     }
@@ -231,7 +259,7 @@ export async function POST(req: NextRequest) {
     let isReAnswer = false
 
     if (existingSession) {
-      const answers = existingSession.answers as any[]
+      const answers = Array.isArray(existingSession.answers) ? existingSession.answers as any[] : []
       const alreadyAnsweredIndex = answers.findIndex((a: any) => a.questionId === questionId)
 
       const newAnswer = {
@@ -242,7 +270,7 @@ export async function POST(req: NextRequest) {
         isCorrect,
         pointsEarned,
         answeredAt: new Date().toISOString(),
-        clientAnsweredAt: clientAnsweredAt ?? null,
+        clientAnsweredAt: safeClientAnsweredAt ?? null,
         responseTimeSec,
       }
 
@@ -252,23 +280,24 @@ export async function POST(req: NextRequest) {
         // It's a re-answer! Remove old points, add new points
         isReAnswer = true
         const oldAnswer = answers[alreadyAnsweredIndex]
-        updatedScore = existingSession.total_score - oldAnswer.pointsEarned + pointsEarned
-        
-        // Retain original tap time and response time if this was a fast change
-        newAnswer.clientAnsweredAt = oldAnswer.clientAnsweredAt
-        newAnswer.responseTimeSec = oldAnswer.responseTimeSec
-        
+        updatedScore = (existingSession.total_score ?? 0) - (oldAnswer.pointsEarned ?? 0) + pointsEarned
         newAnswers[alreadyAnsweredIndex] = newAnswer
       } else {
         // First time answering this question
         newAnswers.push(newAnswer)
-        updatedScore = existingSession.total_score + pointsEarned
+        updatedScore = (existingSession.total_score ?? 0) + pointsEarned
       }
 
-      await supabase
+      updatedScore = Math.max(0, updatedScore)
+      const { error: updateError } = await supabase
         .from('quiz_sessions')
-        .update({ answers: newAnswers, total_score: Math.max(0, updatedScore) })
+        .update({ answers: newAnswers, total_score: updatedScore })
         .eq('id', existingSession.id)
+
+      if (updateError) {
+        console.error('submit-answer session update failed')
+        return NextResponse.json({ error: 'Answer was not saved' }, { status: 503 })
+      }
 
       updatedAnswers = newAnswers
     } else {
@@ -281,10 +310,10 @@ export async function POST(req: NextRequest) {
         isCorrect,
         pointsEarned,
         answeredAt: new Date().toISOString(),
-        clientAnsweredAt: clientAnsweredAt ?? null,
+        clientAnsweredAt: safeClientAnsweredAt ?? null,
         responseTimeSec,
       }
-      const { data: insertedSession } = await supabase.from('quiz_sessions').insert({
+      const { data: insertedSession, error: insertError } = await supabase.from('quiz_sessions').insert({
         member_id: memberId,
         quiz_id: quizId,
         subject,
@@ -293,17 +322,20 @@ export async function POST(req: NextRequest) {
         started_at: new Date().toISOString(),
       }).select('id').single()
 
-      activeSessionId = insertedSession?.id
+      if (insertError || !insertedSession) {
+        const status = insertError?.code === '23505' ? 409 : 503
+        return NextResponse.json({ error: status === 409 ? 'Concurrent answer submission' : 'Answer was not saved' }, { status })
+      }
+
+      activeSessionId = insertedSession.id
       updatedAnswers = [newAnswer]
     }
 
-    // Only fire notifications if this is their first attempt at the question
-    if (!isReAnswer) {
-      // Fire-and-forget streak/comeback/loss detection
-      analyseAndNotify(supabase, updatedAnswers, schoolName, memberName, subject)
+    analyseAndNotify(supabase, updatedAnswers, schoolName, memberName, subject)
 
-      // Check additional live events (overtake, lightning fast answer)
-      checkSpecialEventsAndNotify(
+    // Fast/overtake notifications only fire on the first attempt.
+    if (!isReAnswer) {
+      void checkSpecialEventsAndNotify(
         supabase,
         quizId,
         subject,
@@ -313,7 +345,7 @@ export async function POST(req: NextRequest) {
         schoolName,
         memberName,
         state,
-        clientAnsweredAt
+        safeClientAnsweredAt
       )
     }
 

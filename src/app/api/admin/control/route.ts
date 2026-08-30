@@ -9,33 +9,37 @@ function checkAdminAuth(req: NextRequest): boolean {
 export async function POST(req: NextRequest) {
   if (!checkAdminAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { action, subject } = await req.json()
-  const supabase = createAdminClient()
+  try {
+    const { action, subject } = await req.json()
+    const supabase = createAdminClient()
 
-  switch (action) {
+    switch (action) {
     case 'start': {
       // Verify there are questions
-      const { data: quiz } = await supabase.from('quizzes').select('id').eq('subject', subject).single()
+      const { data: quiz } = await supabase.from('quizzes').select('id').eq('subject', subject).maybeSingle().throwOnError()
       if (!quiz) return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
 
       const { count } = await supabase
         .from('questions')
         .select('id', { count: 'exact', head: true })
         .eq('quiz_id', quiz.id)
+        .throwOnError()
 
       if (!count || count === 0) {
         return NextResponse.json({ error: 'No questions added yet' }, { status: 400 })
       }
 
       const now = new Date().toISOString()
-      await supabase.from('quiz_state').upsert({
-        subject,
-        status: 'active',
-        current_question_index: 0,
-        started_at: now,
-        question_started_at: now,
-      })
-      await supabase.from('quizzes').update({ status: 'active' }).eq('subject', subject)
+      await Promise.all([
+        supabase.from('quiz_state').upsert({
+          subject,
+          status: 'active',
+          current_question_index: 0,
+          started_at: now,
+          question_started_at: now,
+        }).throwOnError(),
+        supabase.from('quizzes').update({ status: 'active' }).eq('subject', subject).throwOnError(),
+      ])
       return NextResponse.json({ ok: true, action: 'started' })
     }
 
@@ -44,61 +48,69 @@ export async function POST(req: NextRequest) {
         .from('quiz_state')
         .select('current_question_index')
         .eq('subject', subject)
-        .single()
+        .maybeSingle()
+        .throwOnError()
 
       if (!state) return NextResponse.json({ error: 'Quiz state not found' }, { status: 404 })
 
       const nextIndex = state.current_question_index + 1
 
       // Check if there are more questions
-      const { data: quiz } = await supabase.from('quizzes').select('id').eq('subject', subject).single()
+      const { data: quiz } = await supabase.from('quizzes').select('id').eq('subject', subject).maybeSingle().throwOnError()
+      if (!quiz) return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
       const { count } = await supabase
         .from('questions')
         .select('id', { count: 'exact', head: true })
-        .eq('quiz_id', quiz!.id)
+        .eq('quiz_id', quiz.id)
+        .throwOnError()
 
       if (nextIndex >= (count ?? 0)) {
         // Auto-end quiz
-        await supabase.from('quiz_state').update({
-          status: 'ended',
-          ended_at: new Date().toISOString(),
-          current_question_index: nextIndex,
-        }).eq('subject', subject)
-        await supabase.from('quizzes').update({ status: 'ended' }).eq('subject', subject)
+        await Promise.all([
+          supabase.from('quiz_state').update({
+            status: 'ended',
+            ended_at: new Date().toISOString(),
+          }).eq('subject', subject).throwOnError(),
+          supabase.from('quizzes').update({ status: 'ended' }).eq('subject', subject).throwOnError(),
+        ])
         return NextResponse.json({ ok: true, action: 'ended' })
       }
 
       await supabase.from('quiz_state').update({
         current_question_index: nextIndex,
         question_started_at: new Date().toISOString(),
-      }).eq('subject', subject)
+      }).eq('subject', subject).throwOnError()
 
       return NextResponse.json({ ok: true, action: 'next', questionIndex: nextIndex })
     }
 
     case 'end': {
-      await supabase.from('quiz_state').update({
-        status: 'ended',
-        ended_at: new Date().toISOString(),
-      }).eq('subject', subject)
-      await supabase.from('quizzes').update({ status: 'ended' }).eq('subject', subject)
+      await Promise.all([
+        supabase.from('quiz_state').update({
+          status: 'ended',
+          ended_at: new Date().toISOString(),
+        }).eq('subject', subject).throwOnError(),
+        supabase.from('quizzes').update({ status: 'ended' }).eq('subject', subject).throwOnError(),
+      ])
       return NextResponse.json({ ok: true, action: 'ended' })
     }
 
     case 'reset': {
       // Reset quiz back to waiting — clears all sessions for a fresh start
-      const { data: quiz } = await supabase.from('quizzes').select('id').eq('subject', subject).single()
+      const { data: quiz } = await supabase.from('quizzes').select('id').eq('subject', subject).maybeSingle().throwOnError()
       if (quiz) {
-        await supabase.from('quiz_sessions').delete().eq('subject', subject)
+        await supabase.from('quiz_sessions').delete().eq('subject', subject).throwOnError()
       }
-      await supabase.from('quiz_state').update({
-        status: 'waiting',
-        current_question_index: -1,
-        started_at: null,
-        ended_at: null,
-        question_started_at: null,
-      }).eq('subject', subject)
-      await supabase.from('quizzes').update({ status: 'waiting' }).eq('subject', subject)
+      await Promise.all([
+        supabase.from('quiz_state').update({
+          status: 'waiting',
+          current_question_index: -1,
+          started_at: null,
+          ended_at: null,
+          question_started_at: null,
+        }).eq('subject', subject).throwOnError(),
+        supabase.from('quizzes').update({ status: 'waiting' }).eq('subject', subject).throwOnError(),
+      ])
       return NextResponse.json({ ok: true, action: 'reset' })
     }
 
@@ -109,12 +121,14 @@ export async function POST(req: NextRequest) {
         .select('id, member_id, total_score')
         .eq('subject', subject)
         .order('total_score', { ascending: false })
+        .throwOnError()
 
       if (sessions && sessions.length > 0) {
         const completedAt = new Date().toISOString()
         // Standard competition ranking (1-2-2-4): tied scores share the same rank,
         // and the next rank is skipped by the number of tied players.
         let rank = 1
+        const updates = []
         for (let i = 0; i < sessions.length; i++) {
           // If this player has the same score as the previous, reuse that rank
           if (i > 0 && sessions[i].total_score === sessions[i - 1].total_score) {
@@ -122,20 +136,28 @@ export async function POST(req: NextRequest) {
           } else {
             rank = i + 1  // position-based rank (skips over tied positions)
           }
-          await supabase
+          updates.push(supabase
             .from('quiz_sessions')
             .update({ rank, completed_at: completedAt })
             .eq('id', sessions[i].id)
+            .throwOnError())
         }
+        await Promise.all(updates)
       }
 
-      await supabase.from('quiz_state').update({ status: 'results_published' }).eq('subject', subject)
-      await supabase.from('quizzes').update({ status: 'results_published' }).eq('subject', subject)
+      await Promise.all([
+        supabase.from('quiz_state').update({ status: 'results_published' }).eq('subject', subject).throwOnError(),
+        supabase.from('quizzes').update({ status: 'results_published' }).eq('subject', subject).throwOnError(),
+      ])
       return NextResponse.json({ ok: true, action: 'results_published' })
     }
 
     default:
       return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+    }
+  } catch (err) {
+    console.error('quiz control error:', err)
+    return NextResponse.json({ error: 'Quiz control temporarily unavailable' }, { status: 503 })
   }
 }
 
@@ -146,34 +168,44 @@ export async function GET(req: NextRequest) {
   const subject = req.nextUrl.searchParams.get('subject')
   if (!subject) return NextResponse.json({ error: 'Subject required' }, { status: 400 })
 
-  const supabase = createAdminClient()
+  try {
+    const supabase = createAdminClient()
+    const [stateResult, quizResult] = await Promise.all([
+      supabase.from('quiz_state').select('*').eq('subject', subject).maybeSingle().throwOnError(),
+      supabase.from('quizzes').select('id, correct_points, negative_points').eq('subject', subject).maybeSingle().throwOnError(),
+    ])
+    const state = stateResult.data
+    const quiz = quizResult.data
 
-  const { data: state } = await supabase.from('quiz_state').select('*').eq('subject', subject).single()
-  const { data: quiz } = await supabase.from('quizzes').select('id, correct_points, negative_points').eq('subject', subject).single()
+    let sessions: any[] = []
+    let questions: any[] = []
 
-  let sessions: any[] = []
-  let questions: any[] = []
+    if (quiz) {
+      const [sessionsResult, questionsResult] = await Promise.all([
+        supabase
+          .from('quiz_sessions')
+          .select(`
+            id, member_id, total_score, rank, answers, cheat_flags,
+            members!inner(id, name, registration_id,
+              registrations!inner(school_name))
+          `)
+          .eq('subject', subject)
+          .throwOnError(),
+        supabase
+          .from('questions')
+          .select('id, order_index, correct_option, question_text, time_seconds')
+          .eq('quiz_id', quiz.id)
+          .order('order_index')
+          .throwOnError(),
+      ])
 
-  if (quiz) {
-    const { data: s } = await supabase
-      .from('quiz_sessions')
-      .select(`
-        id, total_score, rank, answers, cheat_flags,
-        members!inner(id, name, registration_id,
-          registrations!inner(school_name))
-      `)
-      .eq('subject', subject)
+      sessions = sessionsResult.data ?? []
+      questions = questionsResult.data ?? []
+    }
 
-    sessions = s ?? []
-
-    const { data: q } = await supabase
-      .from('questions')
-      .select('id, order_index, correct_option, question_text, time_seconds')
-      .eq('quiz_id', quiz.id)
-      .order('order_index')
-
-    questions = q ?? []
+    return NextResponse.json({ state, sessions, questions, quiz })
+  } catch (err) {
+    console.error('quiz analytics error:', err)
+    return NextResponse.json({ error: 'Analytics temporarily unavailable' }, { status: 503 })
   }
-
-  return NextResponse.json({ state, sessions, questions, quiz })
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { Lock, AlertTriangle } from 'lucide-react'
-import PresenceFooter from './components/PresenceFooter'
 import styles from './layout.module.css'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -102,7 +101,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {children}
       </div>
-      <PresenceFooter />
     </div>
   )
 }

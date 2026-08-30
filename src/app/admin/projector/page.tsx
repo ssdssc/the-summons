@@ -135,7 +135,6 @@ export default function ProjectorPage() {
 
     const ch = supabase
       .channel('projector-live-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'quiz_sessions' }, () => fetchData(t))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'quiz_state' }, () => fetchData(t))
       .subscribe()
 

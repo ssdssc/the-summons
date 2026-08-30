@@ -43,11 +43,9 @@ export default function LiveAnalytics({ subject, token }: Props) {
     // Poll every 4 seconds for live updates
     pollRef.current = setInterval(fetchAnalytics, 4000)
 
-    // Also subscribe to realtime session changes
+    // State changes are infrequent; answer updates come from the existing poll.
     const ch = supabase
       .channel(`admin-analytics-${subject}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'quiz_sessions', filter: `subject=eq.${subject}` },
-        () => fetchAnalytics())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'quiz_state', filter: `subject=eq.${subject}` },
         (p: any) => { setCurrentQIndex(p.new.current_question_index ?? -1); fetchAnalytics() })
       .subscribe()

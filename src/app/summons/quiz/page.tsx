@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, SUBJECT_CONFIG, type Subject } from '@/lib/supabase'
 import { SubjectIcon } from '@/app/admin/components/SubjectIcon'
-import { CheckCircle, AlertTriangle, Maximize2, Timer, Key } from 'lucide-react'
+import { AlertTriangle, Timer } from 'lucide-react'
 import styles from './page.module.css'
 import entryStyles from '../page.module.css'
 
@@ -55,9 +55,7 @@ export default function QuizPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, { selected: string; correct: string; isCorrect: boolean }>>({})
   const [pendingOption, setPendingOption] = useState<string | null>(null) // optimistic UI
-  const [submitting, setSubmitting] = useState(false)
   const [quizStatus, setQuizStatus] = useState<string>('active')
-  const [score, setScore] = useState(0)
   const [questionTransition, setQuestionTransition] = useState(false)
   const [lang, setLang] = useState<'en' | 'si'>('en')
   // Timer
@@ -70,6 +68,7 @@ export default function QuizPage() {
   const [warningMsg, setWarningMsg] = useState('')
 
   const channelRef = useRef<any>(null)
+  const currentIndexRef = useRef(0)
   const wasHiddenRef = useRef(false)
   const memberRef = useRef<any>(null)
   const quizRef = useRef<any>(null)
@@ -94,20 +93,6 @@ export default function QuizPage() {
     setLang(l as 'en' | 'si')
     sessionTokenRef.current = token
 
-    // Load initial question_started_at from quiz_state
-    if (memberData?.subject) {
-      supabase
-        .from('quiz_state')
-        .select('question_started_at, current_question_index')
-        .eq('subject', memberData.subject)
-        .single()
-        .then(({ data }) => {
-          if (data?.question_started_at) setQuestionStartedAt(data.question_started_at)
-          if (typeof data?.current_question_index === 'number' && data.current_question_index >= 0) {
-            setCurrentIndex(data.current_question_index)
-          }
-        })
-    }
   }, [router])
 
   // ── Load questions ────────────────────────────────────────────────────────
@@ -120,31 +105,52 @@ export default function QuizPage() {
   // ── Quiz state realtime subscription ─────────────────────────────────────
   useEffect(() => {
     if (!member?.subject) return
-    channelRef.current = supabase
-      .channel(`quiz-play-${member.subject}`)
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'quiz_state', filter: `subject=eq.${member.subject}` },
-        (payload: any) => {
-          const { status, current_question_index, question_started_at } = payload.new
-          if (status === 'results_published') {
-            router.push('/summons/results'); return
-          }
-          if (status === 'ended') {
-            setQuizStatus(status); return
-          }
-          if (question_started_at) setQuestionStartedAt(question_started_at)
-          if (typeof current_question_index === 'number' && current_question_index !== currentIndex) {
-            setQuestionTransition(true)
-            setTimeout(() => {
-              setCurrentIndex(current_question_index)
-              setPendingOption(null)
-              setQuestionTransition(false)
-            }, 400)
-          }
+
+    let transitionTimer: ReturnType<typeof setTimeout> | null = null
+    const applyState = ({ status, current_question_index, question_started_at }: any) => {
+      if (status === 'results_published') {
+        router.push('/summons/results')
+        return
+      }
+      setQuizStatus(status)
+      if (status === 'ended') return
+      if (question_started_at) setQuestionStartedAt(question_started_at)
+      if (typeof current_question_index === 'number' && current_question_index !== currentIndexRef.current) {
+        currentIndexRef.current = current_question_index
+        setQuestionTransition(true)
+        if (transitionTimer) clearTimeout(transitionTimer)
+        transitionTimer = setTimeout(() => {
+          setCurrentIndex(current_question_index)
+          setPendingOption(null)
+          setQuestionTransition(false)
+        }, 400)
+      }
+    }
+
+    // Spread synchronized joins across two seconds to stay below Free-tier limits.
+    const subscribeTimer = setTimeout(() => {
+      channelRef.current = supabase
+        .channel(`quiz-play-${member.subject}`)
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'quiz_state', filter: `subject=eq.${member.subject}` },
+          (payload: any) => applyState(payload.new))
+        .subscribe((status) => {
+          if (status !== 'SUBSCRIBED') return
+          void supabase
+            .from('quiz_state')
+            .select('status, current_question_index, question_started_at')
+            .eq('subject', member.subject)
+            .single()
+            .then(({ data }) => { if (data) applyState(data) })
         })
-      .subscribe()
-    return () => { channelRef.current?.unsubscribe() }
-  }, [member?.subject, currentIndex])
+    }, Math.floor(Math.random() * 2000))
+
+    return () => {
+      clearTimeout(subscribeTimer)
+      if (transitionTimer) clearTimeout(transitionTimer)
+      channelRef.current?.unsubscribe()
+    }
+  }, [member?.subject, router])
 
   // ── Per-question countdown timer ──────────────────────────────────────────
   useEffect(() => {
@@ -254,7 +260,10 @@ export default function QuizPage() {
         if (data.kicked) { setShowKickedModal(true); if (heartbeatRef.current) clearInterval(heartbeatRef.current) }
       } catch { /* network */ }
     }
-    const timeout = setTimeout(() => { check(); heartbeatRef.current = setInterval(check, 15000) }, 3000)
+    const timeout = setTimeout(() => {
+      check()
+      heartbeatRef.current = setInterval(check, 45000 + Math.random() * 30000)
+    }, 3000 + Math.random() * 12000)
     return () => { clearTimeout(timeout); if (heartbeatRef.current) clearInterval(heartbeatRef.current) }
   }, [])
 
@@ -271,23 +280,20 @@ export default function QuizPage() {
 
     // Optimistic UI: highlight immediately
     setPendingOption(option)
-    setSubmitting(true)
 
     try {
       const res = await fetch('/api/submit-answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId: member.id, quizId: quiz.id, subject: member.subject, questionId: q.id, questionIndex: currentIndex, selectedOption: option, clientAnsweredAt }),
+        body: JSON.stringify({ memberId: member.id, quizId: quiz.id, subject: member.subject, questionId: q.id, questionIndex: currentIndex, selectedOption: option, clientAnsweredAt, sessionToken: sessionTokenRef.current }),
       })
       const result = await res.json()
       if (res.ok) {
         playSound()
         setAnswers(prev => ({ ...prev, [q.id]: { selected: option, correct: result.correctOption, isCorrect: result.isCorrect } }))
-        setScore(prev => Math.max(0, prev + result.pointsEarned))
       }
     } catch (err) { console.error('Failed to submit answer:', err) }
     setPendingOption(null)
-    setSubmitting(false)
   }, [member, quiz, questions, currentIndex, answers, pendingOption, timeLeft])
 
   const currentQuestion = questions[currentIndex]
@@ -377,33 +383,6 @@ export default function QuizPage() {
       </main>
     )
   }
-  // ── Quiz ended redirect ───────────────────────────────────────────────────
-  useEffect(() => {
-    if (quizStatus === 'results_published') {
-      router.push('/summons/results')
-    }
-  }, [quizStatus, router])
-
-  // ── Quiz ended ────────────────────────────────────────────────────────────
-  if (quizStatus === 'ended' || quizStatus === 'results_published') {
-    if (quizStatus === 'results_published') return null; // redirecting
-
-    return (
-      <main className={styles.main}>
-        <div className="bg-grid" /><div className="bg-radial" />
-        <div className={`${styles.waitingCard} anim-scale-in`}>
-          <div className={styles.waitingOrbit}><div className={styles.orbitDot} /><div className={styles.orbitDot2} /></div>
-          <div className={styles.waitingIcon}><CheckCircle size={36} strokeWidth={1.5} /></div>
-          <h2 className={styles.waitingTitle}>Quiz Complete</h2>
-          <p className={styles.waitingDesc}>Your answers have been recorded.<br />Waiting for results to be published...</p>
-          <div className={styles.finalScore}>
-            <span className={styles.finalScoreLabel}>Quiz Ended</span>
-          </div>
-        </div>
-      </main>
-    )
-  }
-
   if (!currentQuestion) {
     return (
       <main className={styles.main}>

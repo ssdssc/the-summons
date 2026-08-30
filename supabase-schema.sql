@@ -12,7 +12,8 @@ CREATE TABLE registrations (
   school_name  TEXT NOT NULL,
   contact_email TEXT NOT NULL,
   registered_at TIMESTAMPTZ DEFAULT NOW(),
-  status       TEXT DEFAULT 'active'
+  status       TEXT DEFAULT 'active',
+  logo_url     TEXT
 );
 
 -- ── Individual members (one per subject per school) ────────────
@@ -23,6 +24,7 @@ CREATE TABLE members (
   subject         TEXT NOT NULL CHECK (subject IN ('biology','chemistry','physics','maths')),
   is_captain      BOOLEAN DEFAULT FALSE,
   access_code     TEXT UNIQUE NOT NULL,
+  session_token   TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_members_access_code ON members(access_code);
@@ -54,6 +56,7 @@ CREATE TABLE questions (
   correct_option  TEXT NOT NULL CHECK (correct_option IN ('A','B','C','D','E')),
   points          INT DEFAULT 4,
   negative_points INT DEFAULT 1,
+  time_seconds    INT DEFAULT 120,
   image_url       TEXT,
   -- Sinhala translations (nullable — English is shown as fallback)
   question_text_si TEXT,
@@ -99,19 +102,19 @@ CREATE TABLE quiz_sessions (
   total_score  INT DEFAULT 0,
   rank         INT,
   started_at   TIMESTAMPTZ DEFAULT NOW(),
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  cheat_flags  JSONB DEFAULT '[]'
 );
 CREATE INDEX idx_sessions_subject ON quiz_sessions(subject);
-CREATE INDEX idx_sessions_member  ON quiz_sessions(member_id);
+CREATE UNIQUE INDEX idx_sessions_member_quiz ON quiz_sessions(member_id, quiz_id);
 
 -- ═══════════════════════════════════════════════════════════
--- REALTIME: Enable realtime on quiz_state and quiz_sessions
+-- REALTIME: Quiz clients only need the low-frequency control state.
 -- Run in Supabase Dashboard → Database → Replication
 -- Or run these:
 -- ═══════════════════════════════════════════════════════════
 
 ALTER PUBLICATION supabase_realtime ADD TABLE quiz_state;
-ALTER PUBLICATION supabase_realtime ADD TABLE quiz_sessions;
 
 -- ═══════════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY (RLS)

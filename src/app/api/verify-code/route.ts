@@ -23,33 +23,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid access code' }, { status: 404 })
     }
 
+    const normalizedCode = accessCode.trim().toUpperCase()
+
     // Generate a new session token — invalidates any existing session on another device
     const sessionToken = randomUUID()
-    await supabase
-      .from('members')
-      .update({ session_token: sessionToken })
-      .eq('id', member.id)
+    const [tokenResult, registrationResult, quizResult, stateResult] = await Promise.all([
+      supabase.from('members').update({ session_token: sessionToken }).eq('id', member.id),
+      supabase.from('registrations').select('school_name, logo_url').eq('id', member.registration_id).maybeSingle(),
+      supabase.from('quizzes').select('id, title, scheduled_at, duration_minutes, status').eq('subject', member.subject).maybeSingle(),
+      supabase.from('quiz_state').select('status, current_question_index, started_at').eq('subject', member.subject).maybeSingle(),
+    ])
 
-    // Get school name and logo
-    const { data: registration } = await supabase
-      .from('registrations')
-      .select('school_name, logo_url')
-      .eq('id', member.registration_id)
-      .single()
+    if (tokenResult.error || registrationResult.error || quizResult.error || stateResult.error) {
+      console.error('verify-code dependent query failed')
+      return NextResponse.json({ error: 'Login service temporarily unavailable' }, { status: 503 })
+    }
 
-    // Get quiz info for this subject
-    const { data: quiz } = await supabase
-      .from('quizzes')
-      .select('id, title, scheduled_at, duration_minutes, status')
-      .eq('subject', member.subject)
-      .single()
-
-    // Get current quiz state
-    const { data: quizState } = await supabase
-      .from('quiz_state')
-      .select('status, current_question_index, started_at')
-      .eq('subject', member.subject)
-      .single()
+    const registration = registrationResult.data
+    const quiz = quizResult.data
+    const quizState = stateResult.data
 
     return NextResponse.json({
       sessionToken,
@@ -58,7 +50,7 @@ export async function POST(req: NextRequest) {
         name: member.name,
         subject: member.subject,
         isCaptain: member.is_captain,
-        accessCode: accessCode.trim().toUpperCase(),
+        accessCode: normalizedCode,
       },
       school: {
         name: registration?.school_name ?? 'Unknown School',

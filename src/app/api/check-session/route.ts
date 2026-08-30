@@ -11,11 +11,15 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient()
 
-    const { data: member } = await supabase
+    const { data: member, error } = await supabase
       .from('members')
       .select('session_token')
       .eq('id', memberId)
-      .single()
+      .maybeSingle()
+
+    if (error) {
+      return NextResponse.json({ error: 'Session check temporarily unavailable' }, { status: 503 })
+    }
 
     if (!member) {
       return NextResponse.json({ kicked: true, reason: 'member_not_found' })

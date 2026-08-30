@@ -86,6 +86,19 @@ export default function SummonsPage() {
 
     const subject = data.member.subject
     setQuizStatus(data.quiz?.status ?? 'waiting')
+    let entering = false
+
+    const applyStatus = (newStatus: string) => {
+      setQuizStatus(newStatus)
+      if (newStatus !== 'active' || entering) return
+      entering = true
+      setTimeout(() => {
+        sessionStorage.setItem('summons_member', JSON.stringify(data.member))
+        sessionStorage.setItem('summons_school', JSON.stringify(data.school))
+        sessionStorage.setItem('summons_quiz', JSON.stringify({ ...data.quiz, status: 'active' }))
+        router.push('/summons/quiz')
+      }, 1200)
+    }
 
     channelRef.current = supabase
       .channel(`quiz-state-${subject}`)
@@ -93,20 +106,18 @@ export default function SummonsPage() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'quiz_state', filter: `subject=eq.${subject}` },
         (payload: any) => {
-          const newStatus = payload.new.status
-          setQuizStatus(newStatus)
-          if (newStatus === 'active') {
-            // Flash notification then navigate
-            setTimeout(() => {
-              sessionStorage.setItem('summons_member', JSON.stringify(data.member))
-              sessionStorage.setItem('summons_school', JSON.stringify(data.school))
-              sessionStorage.setItem('summons_quiz', JSON.stringify({ ...data.quiz, status: 'active' }))
-              router.push('/summons/quiz')
-            }, 1200)
-          }
+          applyStatus(payload.new.status)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status !== 'SUBSCRIBED') return
+        void supabase
+          .from('quiz_state')
+          .select('status')
+          .eq('subject', subject)
+          .single()
+          .then(({ data: state }) => { if (state?.status) applyStatus(state.status) })
+      })
 
     return () => { channelRef.current?.unsubscribe() }
   }, [data, router])
